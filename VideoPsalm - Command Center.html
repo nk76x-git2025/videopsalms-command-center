@@ -322,6 +322,28 @@ async function ensurePerm(handle){if(!handle)return false;if((await handle.query
 async function pickDir(label,key=null){if(!window.showDirectoryPicker){alert('Use Chrome or Edge for folder editing.');return null}const h=await window.showDirectoryPicker({mode:'readwrite'});if(key)await saveHandle(key,h);log(`Selected ${label}: ${h.name}`);return h}
 async function readFileHandle(h){return await (await h.getFile()).text()}
 async function writeFileHandle(h,t){const w=await h.createWritable();await w.write(t);await w.close()}
+function backupStamp(){return new Date().toISOString().replace(/[:.]/g,'-')}
+async function writeBackupCopy(targetHandle,text,side='local'){
+  try{
+    if(side==='central'){
+      if(!state.centralDir)return;
+      const backupDir=await state.centralDir.getDirectoryHandle('Backup',{create:true});
+      const backupName=`${targetHandle.name}.${backupStamp()}.backup.central`;
+      const backupFile=await backupDir.getFileHandle(backupName,{create:true});
+      await writeFileHandle(backupFile,text);
+    }else{
+      if(!state.songBooksDir)return;
+      const backupDir=await state.songBooksDir.getDirectoryHandle('backup',{create:true});
+      const backupName=`${targetHandle.name}.${backupStamp()}.backup.json`;
+      const backupFile=await backupDir.getFileHandle(backupName,{create:true});
+      await writeFileHandle(backupFile,text);
+    }
+  }catch(e){
+    log(`Backup skipped for ${targetHandle?.name||'file'}: ${e.message}`,'warn');
+  }
+}
+async function writeLocalFile(handle,text){await writeBackupCopy(handle,text,'local');await writeFileHandle(handle,text)}
+async function writeCentralFile(handle,text){await writeBackupCopy(handle,text,'central');await writeFileHandle(handle,text)}
 async function getOrCreateFile(d,n){return await d.getFileHandle(n,{create:true})}
 async function listFiles(d,p=()=>true){const a=[];if(!d)return a;for await(const [name,h] of d.entries())if(h.kind==='file'&&p(name))a.push({name,handle:h});return a.sort((x,y)=>x.name.localeCompare(y.name))}
 async function listAllFilesRecursive(d,p=()=>true,prefix=''){const a=[];if(!d)return a;for await(const [name,h] of d.entries()){const path=prefix?`${prefix}/${name}`:name;if(h.kind==='file'&&p(name,path))a.push({name,path,handle:h});if(h.kind==='directory')a.push(...await listAllFilesRecursive(h,p,path))}return a.sort((x,y)=>x.path.localeCompare(y.path))}
@@ -525,8 +547,8 @@ function ensureSongsArray(root){if(Array.isArray(root?.Songs))return root.Songs;
 function songHasLyricChanges(d){return !!d?.changes?.some(c=>c.category==='lyrics')}
 function setSongStatus(song,mode){if(!song)return false;const key=Object.keys(song).find(k=>/^copyright$/i.test(k))||'Copyright';const old=String(song[key]??'');const lines=old.split(/\r?\n/).filter(l=>l.trim()!==STATUS);let next=lines.join('\n').trim();if(mode==='mark')next=(next?next+'\n\n':'')+STATUS;if(next!==old.trim()){song[key]=next;return true}return false}
 function hasSongStatus(song){const key=Object.keys(song||{}).find(k=>/^copyright$/i.test(k))||'Copyright';return String(song?.[key]??'').split(/\r?\n/).some(l=>l.trim()===STATUS)}
-async function writeCentralWithLog(msg){if(!state.current)return;state.current.centralObj=addChangelog(state.current.centralObj,msg);await writeFileHandle(state.current.centralHandle,serializeVp(state.current.centralObj))}
-async function writeLocal(){if(!state.current)return;await writeFileHandle(state.current.localHandle,serializeVp(state.current.localObj))}
+async function writeCentralWithLog(msg){if(!state.current)return;state.current.centralObj=addChangelog(state.current.centralObj,msg);await writeCentralFile(state.current.centralHandle,serializeVp(state.current.centralObj))}
+async function writeLocal(){if(!state.current)return;await writeLocalFile(state.current.localHandle,serializeVp(state.current.localObj))}
 function stamp(msg){return `${new Date().toISOString().slice(0,19).replace('T',' ')} - ${msg}`}
 async function actionSong(diffIndex,action){const d=state.diffs[Number(diffIndex)];if(!state.current||!d)return alert('No song difference selected.');let msg='';if(action==='push-local-central'){
   if(d.local?.song){const copy=clone(d.local.song);if(songHasLyricChanges(d)||d.status==='added-local')setSongStatus(copy,'mark');if(d.central?.path)setByPath(state.current.centralObj,d.central.path,copy);else{const arr=ensureSongsArray(state.current.centralObj);if(!arr)return alert('Could not find Central Songs array.');arr.push(copy)}msg=`Accepted Local into Central for ${getTitle(copy)}${hasSongStatus(copy)?' and marked Translation Unverified':''}.`}
@@ -664,9 +686,9 @@ async function renderDiffs(){const list=$('diffList');list.innerHTML='';const q=
   actions=`<div class="row"><button class="small good" data-meta-action="push-local-central">Push Local metadata → Central</button><button class="small bad" data-meta-action="restore-central-local">Restore Local metadata from Central</button></div>`;
 }
 let html=`<div class="diffHead"><div><div class="diffTitle">${esc(d.title)}</div><div class="muted">${esc(d.pairName||state.current?.pairName||'')} • ${esc(d.id)} ${hasSongStatus(d.central?.song)?'• Translation Unverified':''}</div></div><span class="pill">${changes.length} change(s)</span></div>${actions}`;for(const c of changes){html+=`<div class="change"><b>${esc(c.kind)}</b> <span class="pill ${c.category==='visual'?'warn':c.category==='lyrics'?'bad':''}">${esc(c.category)}</span>${renderChangeBoxes(c)}`;if(c.visual)html+=`<div class="previewRow"><div>${await previewHtml(c.local)}</div><div>${await previewHtml(c.central)}</div></div>`;html+='</div>'}div.innerHTML=html;list.appendChild(div)}if(!shown)list.innerHTML='<div class="notice ok">No differences match this filter.</div>';document.querySelectorAll('[data-song-action]').forEach(b=>b.onclick=()=>actionSong(b.dataset.diff,b.dataset.songAction));document.querySelectorAll('[data-meta-action]').forEach(b=>b.onclick=()=>actionMeta(b.dataset.metaAction))}
-async function createMissingCentral(){const p=state.pairs.find(x=>x.key===$('pairSelect').value);if(!p||!p.local)return alert('Select a Local songbook first.');if(!state.centralDir)return alert('Pick Central folder first.');if(p.central&&!confirm('Central already exists. Overwrite from Local?'))return;const h=await getOrCreateFile(state.centralDir,centralNameFromLocal(p.local.name));await writeFileHandle(h,await readFileHandle(p.local.handle));log(`Created Central: ${centralNameFromLocal(p.local.name)}`,'good');await scanFolders()}
-async function saveCurrent(which){if(!state.current)return;const stamp=`${new Date().toISOString().slice(0,19).replace('T',' ')} - Updated ${which} with Videopsalms Command Center.`;if(which==='local'){const text=serializeVp(state.current.localObj);state.current.localText=text;await writeFileHandle(state.current.localHandle,text)}else{state.current.centralObj=addChangelog(state.current.centralObj,stamp);const text=serializeVp(state.current.centralObj);state.current.centralText=text;await writeFileHandle(state.current.centralHandle,text)}}
-async function applyLanguageAll(){if(!confirm(`Generate ALL Local .json files from Central using ${$('languageMode').value} mode?`))return;await scanFolders();let count=0,verses=0;for(const p of state.pairs){if(!p.local||!p.central)continue;try{const c=parseVp(await readFileHandle(p.central.handle));const res=transformLanguage(c,$('languageMode').value);await writeFileHandle(p.local.handle,serializeVp(res.obj));count++;verses+=res.changed}catch(e){log(`Skipped ${p.name}: ${e.message}`,'bad')}}log(`Applied language mode to ${count} Local files. Changed ${verses} verse fields.`,'good');await compareAll()}
+async function createMissingCentral(){const p=state.pairs.find(x=>x.key===$('pairSelect').value);if(!p||!p.local)return alert('Select a Local songbook first.');if(!state.centralDir)return alert('Pick Central folder first.');if(p.central&&!confirm('Central already exists. Overwrite from Local?'))return;const h=await getOrCreateFile(state.centralDir,centralNameFromLocal(p.local.name));await writeCentralFile(h,await readFileHandle(p.local.handle));log(`Created Central: ${centralNameFromLocal(p.local.name)}`,'good');await scanFolders()}
+async function saveCurrent(which){if(!state.current)return;const stamp=`${new Date().toISOString().slice(0,19).replace('T',' ')} - Updated ${which} with Videopsalms Command Center.`;if(which==='local'){const text=serializeVp(state.current.localObj);state.current.localText=text;await writeLocalFile(state.current.localHandle,text)}else{state.current.centralObj=addChangelog(state.current.centralObj,stamp);const text=serializeVp(state.current.centralObj);state.current.centralText=text;await writeCentralFile(state.current.centralHandle,text)}}
+async function applyLanguageAll(){if(!confirm(`Generate ALL Local .json files from Central using ${$('languageMode').value} mode?`))return;await scanFolders();let count=0,verses=0;for(const p of state.pairs){if(!p.local||!p.central)continue;try{const c=parseVp(await readFileHandle(p.central.handle));const res=transformLanguage(c,$('languageMode').value);await writeLocalFile(p.local.handle,serializeVp(res.obj));count++;verses+=res.changed}catch(e){log(`Skipped ${p.name}: ${e.message}`,'bad')}}log(`Applied language mode to ${count} Local files. Changed ${verses} verse fields.`,'good');await compareAll()}
 async function scanImages(){state.imageIndex.clear();const files=await listAllFilesRecursive(state.imagesDir,n=>/\.(png|jpe?g|gif|webp|bmp)$/i.test(n));files.forEach(f=>state.imageIndex.set(f.name.toLowerCase(),f.handle));await detectThemes(files);log(`Indexed ${files.length} images.`,'good')}
 async function scanThumbs(){state.thumbIndex.clear();const files=await listAllFilesRecursive(state.thumbsDir,n=>/\.(png|jpe?g|gif|webp|bmp|mp4|mov|avi|wmv|mkv)$/i.test(n));files.forEach(f=>state.thumbIndex.set(f.name.toLowerCase(),f.handle));log(`Indexed ${files.length} thumbnails/media.`,'good')}
 async function detectThemes(files=null){state.themes.clear();const fs=files||await listAllFilesRecursive(state.imagesDir,n=>/\.(png|jpe?g|gif|webp|bmp)$/i.test(n));const re=/^(.+)_VideoPsalms-(Blank|Main|Welcome|Goodbye)\.(png|jpe?g|webp|gif|bmp)$/i;for(const f of fs){const m=f.name.match(re);if(!m)continue;const theme=m[1],slot=m[2][0].toUpperCase()+m[2].slice(1).toLowerCase();if(!state.themes.has(theme))state.themes.set(theme,{});state.themes.get(theme)[slot]=f}$('themeCount').textContent=`${state.themes.size} themes detected`;await renderThemes()}
