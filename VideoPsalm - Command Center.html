@@ -227,6 +227,34 @@ table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}td
 .songLyrics .secondLang{color:#00F2F2}
 .songMeta{font-size:12px;color:var(--muted);margin-bottom:10px}
 @media(max-width:980px){.songbookLayout{grid-template-columns:1fr}.songLyrics{min-height:50vh}.songList{max-height:40vh}}
+.thumbnail-frame{
+  width:160px;
+  height:90px;
+  max-width:160px;
+  max-height:90px;
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:12px;
+  border:1px solid var(--line);
+  background:rgba(0,0,0,.22);
+}
+.thumbnail-frame img{
+  width:160px;
+  height:90px;
+  max-width:160px;
+  max-height:90px;
+  object-fit:contain;
+  display:block;
+}
+.thumbnail-frame .missing,.thumbnail-frame .empty{
+  padding:8px;
+  text-align:center;
+  font-size:12px;
+  line-height:1.25;
+  overflow-wrap:anywhere;
+}
 </style>
 </head>
 <body>
@@ -492,7 +520,7 @@ for(const k of new Set([...Object.keys(c.song),...Object.keys(l.song)])){if(k===
 const vmC=visualMap(c.song),vmL=visualMap(l.song);for(const p of new Set([...vmC.keys(),...vmL.keys()])){if(String(vmC.get(p)??'')!==String(vmL.get(p)??''))changes.push({kind:`Visual/media reference changed: ${p}`,category:'visual',central:vmC.get(p)||'',local:vmL.get(p)||'',visual:true})}
 if(changes.length)diffs.push({pairName,type:'song',id,title:getTitle(c.song),central:c,local:l,changes})}
 diffs.modeStatus=summarizeModeOnlyChanges(modeCounts);diffs.modeCounts=modeCounts;diffs.modeMismatch=modeMismatch;diffs.modeMismatchMessage=modeMismatch?modeMismatchMessage:'';return diffs}
-function mediaName(v){return String(v??'').split(/[\\/]/).pop().trim().toLowerCase()}async function previewHtml(v){const n=mediaName(v);if(!n)return'<div class="preview"><div class="empty">No media</div></div>';let h=state.imageIndex.get(n)||state.thumbIndex.get(n);if(!h&&/\.(mp4|mov|avi|wmv|mkv)$/i.test(n)){const stem=n.replace(/\.[^.]+$/,'');h=state.thumbIndex.get(stem+'.jpg')||state.thumbIndex.get(stem+'.png')||state.imageIndex.get(stem+'.jpg')||state.imageIndex.get(stem+'.png')}if(!h)return`<div class="preview"><div class="missing">Missing: ${esc(n)}</div></div>`;try{const url=URL.createObjectURL(await h.getFile());return`<div class="preview"><img src="${url}" alt=""></div>`}catch(e){return`<div class="preview"><div class="missing">Cannot preview ${esc(n)}</div></div>`}}
+function mediaName(v){return String(v??'').split(/[\\/]/).pop().trim().toLowerCase()}async function previewHtml(v,opts={}){const n=mediaName(v);const wrapClass=opts?.wrapClass?` ${opts.wrapClass}`:'';if(!n)return`<div class="preview${wrapClass}"><div class="empty">No media</div></div>`;let h=state.imageIndex.get(n)||state.thumbIndex.get(n);if(!h&&/\.(mp4|mov|avi|wmv|mkv)$/i.test(n)){const stem=n.replace(/\.[^.]+$/,'');h=state.thumbIndex.get(stem+'.jpg')||state.thumbIndex.get(stem+'.png')||state.imageIndex.get(stem+'.jpg')||state.imageIndex.get(stem+'.png')}if(!h)return`<div class="preview${wrapClass}"><div class="missing">Missing: ${esc(n)}</div></div>`;try{const url=URL.createObjectURL(await h.getFile());return`<div class="preview${wrapClass}"><img src="${url}" alt=""></div>`}catch(e){return`<div class="preview${wrapClass}"><div class="missing">Cannot preview ${esc(n)}</div></div>`}}
 async function scanFolders(){if(!state.songBooksDir)return alert('Pick SongBooks folder first.');await autoFindCentral();if(!state.centralDir)return alert('Pick Central folder or create SongBooks\\Central.');state.locals=await listFiles(state.songBooksDir,n=>/\.json$/i.test(n));state.centrals=await listFiles(state.centralDir,n=>/\.central$/i.test(n));const lm=new Map(state.locals.map(f=>[baseName(f.name).toLowerCase(),f]));const cm=new Map(state.centrals.map(f=>[baseName(f.name).toLowerCase(),f]));state.pairs=[];for(const k of new Set([...lm.keys(),...cm.keys()])){const local=lm.get(k)||null,central=cm.get(k)||null;const fileName=local?.name||central?.name||k;let title='';try{const src=local||central;if(src){const obj=parseVp(await readFileHandle(src.handle));title=getSongbookTitle(obj,fileName)}}catch(e){title=''}if(!title)title=String(fileName).trim();state.pairs.push({key:k,name:title,fileName,local,central});}state.pairs.sort((a,b)=>a.name.localeCompare(b.name)||a.fileName.localeCompare(b.fileName));renderPairSelect();renderFiles();log(`Scanned ${state.locals.length} Local and ${state.centrals.length} Central files. Found ${state.pairs.length} possible pairs.`,'good');if(state.imagesDir)await scanImages();if(state.thumbsDir)await scanThumbs();return state.pairs}
 function renderPairSelect(){const s=$('pairSelect');s.innerHTML='';for(const p of state.pairs){const o=document.createElement('option');o.value=p.key;o.textContent=`${p.name} ${p.local?'✓ Local':'✗ Local'} ${p.central?'✓ Central':'✗ Central'}`;s.appendChild(o)}}
 function renderFiles(){let html='<table><tr><th>Songbook</th><th>Local</th><th>Central</th><th>Status</th></tr>';for(const p of state.pairs){const status=p.local&&p.central?'Ready':p.local?'Missing Central':'Missing Local';html+=`<tr><td>${esc(p.name)}<div class="muted">File: ${esc(p.fileName||p.local?.name||p.central?.name||'')}</div></td><td>${p.local?esc(p.local.name):'—'}</td><td>${p.central?esc(p.central.name):'—'}</td><td>${status}</td></tr>`}html+='</table>';$('fileTable').innerHTML=html}
@@ -1079,7 +1107,7 @@ async function selectSongbookSong(song){
       const file=String(section?.image?.file||'').trim();
       const source=section?.image?.source||'default';
       const sourceLabel=source==='verse'?'Verse override':(source==='song'?'Song override':'Songbook default');
-      const preview=file?await previewHtml(file):'<div class="preview"><div class="missing">No image set</div></div>';
+      const preview=file?await previewHtml(file,{wrapClass:'thumbnail-frame'}):'<div class="preview thumbnail-frame"><div class="missing">No image set</div></div>';
       html+=`<div class="diffGroup"><div class="songSectionLabel">${esc(section.label||'Section')}</div><div class="muted">Image (${esc(sourceLabel)}): <b>${esc(file||'Not found')}</b></div>${preview}<div style="margin-top:8px;white-space:pre-wrap">${renderSongbookLyrics(section.text||'')}</div></div>`;
     }
   }
