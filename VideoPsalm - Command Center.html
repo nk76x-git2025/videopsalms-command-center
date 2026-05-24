@@ -347,7 +347,7 @@ table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}td
 </main>
 <script>
 'use strict';
-const state={rootDir:null,songBooksDir:null,centralDir:null,imagesDir:null,thumbsDir:null,rootStyleFile:null,songBookStyleFile:null,locals:[],centrals:[],pairs:[],batch:[],current:null,diffs:[],imageIndex:new Map(),thumbIndex:new Map(),themes:new Map(),auditRows:[],unverifiedRows:[],changeLogRows:[],headerLyricsRows:[],activeTab:'dashboard',autoTabCache:{compare:'',audit:'',unverified:'',changelog:'',songbook:''},songbookViewer:{handle:null,name:'',fileName:'',songs:[],selected:null,sort:'number',defaultImage:'00_Spring_VideoPsalms-Blank.png'}};
+const state={rootDir:null,songBooksDir:null,centralDir:null,imagesDir:null,thumbsDir:null,rootStyleFile:null,songBookStyleFile:null,locals:[],centrals:[],pairs:[],batch:[],current:null,diffs:[],imageIndex:new Map(),thumbIndex:new Map(),themes:new Map(),auditRows:[],unverifiedRows:[],changeLogRows:[],headerLyricsRows:[],headerLyricsSelectedKeys:new Set(),headerLyricsSide:'local',activeTab:'dashboard',autoTabCache:{compare:'',audit:'',unverified:'',changelog:'',songbook:''},songbookViewer:{handle:null,name:'',fileName:'',songs:[],selected:null,sort:'number',defaultImage:'00_Spring_VideoPsalms-Blank.png'}};
 const $=id=>document.getElementById(id);
 function log(msg,type=''){const d=document.createElement('div');d.textContent=`[${new Date().toLocaleTimeString()}] ${msg}`;if(type==='good')d.style.color='var(--good)';if(type==='bad')d.style.color='var(--bad)';if(type==='warn')d.style.color='var(--warn)';$('log').appendChild(d);$('log').scrollTop=$('log').scrollHeight}
 function setPath(id,h,msg='Not selected'){$(id).textContent=h?h.name:msg}
@@ -853,7 +853,7 @@ async function scanMisplacedHeaderLyricsLoaded(){
 }
 function headerLyricsCandidateKey(r){return `${r.side}|${r.sid}|${r.index}|${r.tag}|${r.id}|${String(r.template)}`;}
 function getSelectedHeaderLyricsKeys(){
-  return [...document.querySelectorAll('#headerLyricsPanel input[data-header-lyrics-key]:checked')].map(el=>el.dataset.headerLyricsKey);
+  return [...state.headerLyricsSelectedKeys];
 }
 function renderHeaderLyricsPanel(message='',type=''){
   const panel=$('headerLyricsPanel');
@@ -862,7 +862,7 @@ function renderHeaderLyricsPanel(message='',type=''){
   const statusCls=type==='bad'?'notice danger':type==='good'?'notice ok':'notice';
   const statusHtml=message?`<div class="${statusCls}" style="margin-bottom:10px">${esc(message)}</div>`:'';
   const rows=state.headerLyricsRows||[];
-  const selectedCount=getSelectedHeaderLyricsKeys().length;
+  const selectedCount=[...state.headerLyricsSelectedKeys].filter(k=>rows.some(r=>headerLyricsCandidateKey(r)===k)).length;
   let listHtml='';
   if(!rows.length){
     listHtml='<div class="notice ok">No misplaced Header.Template lyrics found.</div>';
@@ -870,8 +870,9 @@ function renderHeaderLyricsPanel(message='',type=''){
     listHtml=rows.map((r,i)=>{
       const key=headerLyricsCandidateKey(r);
       const preview=String(r.template||'').replace(/\s+/g,' ').trim().slice(0,160);
+      const checked=state.headerLyricsSelectedKeys.has(key)?'checked':'';
       return `<div class="change">
-        <label class="row"><input type="checkbox" data-header-lyrics-key="${esc(key)}" checked> <b>#${i+1}</b> <span class="pill">${esc(r.side)}</span> <span>${esc(r.sid||'(no song number)')} • ${esc(r.title)} • ${esc(r.section)}</span></label>
+        <label class="row"><input type="checkbox" data-header-lyrics-key="${esc(key)}" ${checked}> <b>#${i+1}</b> <span class="pill">${esc(r.side)}</span> <span>${esc(r.sid||'(no song number)')} • ${esc(r.title)} • ${esc(r.section)}</span></label>
         <div class="muted" style="margin-top:8px">${esc(preview||'(empty template)')}</div>
         <details style="margin-top:8px"><summary class="muted">Full Header.Template</summary><pre>${esc(String(r.template||''))}</pre></details>
       </div>`;
@@ -884,17 +885,17 @@ function renderHeaderLyricsPanel(message='',type=''){
     <button id="headerLyricsScanBtn" class="primary">Find Misplaced Header Lyrics</button>
     <button id="headerLyricsSelectAllBtn">Select all</button>
     <button id="headerLyricsClearBtn">Clear</button>
-    <button id="headerLyricsApplyBtn" class="good">Apply Repair</button>
+    <button id="headerLyricsApplyBtn" class="good" ${selectedCount?'':'disabled'}>Apply selected repairs</button>
   </div>
   <div class="muted" style="margin-bottom:8px">${rows.length?`Found ${rows.length} possible misplaced lyrics. Selected ${selectedCount}.`:'Run a scan to populate candidates.'}</div>
   ${listHtml}
   <div id="headerLyricsConfirm" class="hidden" style="margin-top:10px"></div>`;
   $('headerLyricsSide').value=state.headerLyricsSide||'local';
   $('headerLyricsScanBtn').onclick=scanHeaderLyricsCandidates;
-  $('headerLyricsSelectAllBtn').onclick=()=>{document.querySelectorAll('#headerLyricsPanel input[data-header-lyrics-key]').forEach(el=>el.checked=true);renderHeaderLyricsPanel(message,type)};
-  $('headerLyricsClearBtn').onclick=()=>{document.querySelectorAll('#headerLyricsPanel input[data-header-lyrics-key]').forEach(el=>el.checked=false);renderHeaderLyricsPanel(message,type)};
+  $('headerLyricsSelectAllBtn').onclick=()=>{state.headerLyricsSelectedKeys=new Set(rows.map(r=>headerLyricsCandidateKey(r)));renderHeaderLyricsPanel(message,type)};
+  $('headerLyricsClearBtn').onclick=()=>{state.headerLyricsSelectedKeys=new Set();renderHeaderLyricsPanel(message,type)};
   $('headerLyricsApplyBtn').onclick=prepareApplyHeaderLyricsRepair;
-  document.querySelectorAll('#headerLyricsPanel input[data-header-lyrics-key]').forEach(el=>el.onchange=()=>renderHeaderLyricsPanel(message,type));
+  document.querySelectorAll('#headerLyricsPanel input[data-header-lyrics-key]').forEach(el=>el.onchange=()=>{if(el.checked)state.headerLyricsSelectedKeys.add(el.dataset.headerLyricsKey);else state.headerLyricsSelectedKeys.delete(el.dataset.headerLyricsKey);renderHeaderLyricsPanel(message,type)});
 }
 function scanHeaderLyricsCandidates(){
   if(!state.current){renderHeaderLyricsPanel('Load a pair first.','bad');return;}
@@ -904,6 +905,7 @@ function scanHeaderLyricsCandidates(){
   if(src==='local'||src==='both')rows.push(...collectMisplacedHeaderLyrics(state.current.localObj,'Local'));
   if(src==='central'||src==='both')rows.push(...collectMisplacedHeaderLyrics(state.current.centralObj,'Central'));
   state.headerLyricsRows=rows;
+  state.headerLyricsSelectedKeys=new Set();
   renderHeaderLyricsPanel(rows.length?`Found ${rows.length} possible misplaced lyrics.`:'No misplaced Header.Template lyrics found.',rows.length?'warn':'good');
   log(`Misplaced Header Lyrics scan found ${rows.length} candidate verse(s).`,rows.length?'warn':'good');
 }
@@ -951,9 +953,15 @@ async function applyHeaderLyricsRepair(selectedKeys){
       }
     }
     const total=localMoved+centralMoved;
+    state.headerLyricsSelectedKeys=new Set();
     await refreshActiveTabFromLoadedPair(true);
+    scanHeaderLyricsCandidates();
+    await auditLoaded(false);
+    if(state.activeTab==='compare'&&state.current)await compareCurrent();
+    if(state.activeTab==='songbook'&&state.current)await setSongbookViewerFromObj(state.current.localObj,state.current.pairName,state.current.localName||state.current.pairFileName||'');
     const backupMsg=backups.length?` Backup created: ${backups.join(' ; ')}.`:'';
-    renderHeaderLyricsPanel(`Repaired ${total} misplaced Header.Template lyrics.${backupMsg} Audit refreshed.`,total?'good':'warn');
+    renderHeaderLyricsPanel(total?`Repaired ${total} misplaced Header.Template lyric section(s).${backupMsg} Candidate list refreshed. Audit refreshed.`:'No misplaced Header.Template lyrics found.',total?'good':'good');
+    const box=$('headerLyricsConfirm');if(box)box.classList.add('hidden');
     log(`Misplaced Header Lyrics repaired. Local moved: ${localMoved}; Central moved: ${centralMoved}.`,'good');
   }catch(e){
     renderHeaderLyricsPanel(`Repair failed: ${e.message}`,'bad');
