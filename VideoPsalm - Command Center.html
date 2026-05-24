@@ -863,10 +863,8 @@ async function scanMisplacedHeaderLyricsLoaded(){
    ${String(r.template).replace(/\s+/g,' ').trim().slice(0,120)}`);
   const approved=confirm(`Misplaced Header Lyrics candidates: ${rows.length}
 
-${lines.slice(0,18).join('
-')}
-${rows.length>18?'
-...and more':''}
+${lines.slice(0,18).join('\n')}
+${rows.length>18?'\n...and more':''}
 
 Click OK to repair ALL listed candidates by moving Header.Template -> Text on the same verse.`);
   if(!approved){log(`Misplaced Header Lyrics review shown (${rows.length} candidate verses). No changes applied.`,'warn');return;}
