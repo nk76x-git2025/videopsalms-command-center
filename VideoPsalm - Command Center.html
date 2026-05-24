@@ -350,7 +350,7 @@ table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}td
 </main>
 <script>
 'use strict';
-const state={rootDir:null,songBooksDir:null,centralDir:null,imagesDir:null,thumbsDir:null,rootStyleFile:null,songBookStyleFile:null,locals:[],centrals:[],pairs:[],batch:[],current:null,diffs:[],imageIndex:new Map(),thumbIndex:new Map(),themes:new Map(),auditRows:[],unverifiedRows:[],changeLogRows:[],headerLyricsRows:[],headerLyricsSelectedKeys:new Set(),headerLyricsMessage:'',headerLyricsMessageType:'',headerLyricsConfirming:false,headerLyricsOwnerKey:'',activeTab:'dashboard',autoTabCache:{compare:'',audit:'',unverified:'',changelog:'',songbook:''},songbookViewer:{handle:null,name:'',fileName:'',songs:[],selected:null,sort:'number',defaultImage:'00_Spring_VideoPsalms-Blank.png'}};
+const state={rootDir:null,songBooksDir:null,centralDir:null,imagesDir:null,thumbsDir:null,rootStyleFile:null,songBookStyleFile:null,locals:[],centrals:[],pairs:[],batch:[],current:null,diffs:[],imageIndex:new Map(),thumbIndex:new Map(),themes:new Map(),auditRows:[],unverifiedRows:[],changeLogRows:[],headerLyricsRows:[],headerLyricsSelectedKeys:new Set(),headerLyricsMessage:'',headerLyricsMessageType:'',headerLyricsConfirming:false,headerLyricsOwnerKey:'',headerLyricsPanelOpen:false,activeTab:'dashboard',autoTabCache:{compare:'',audit:'',unverified:'',changelog:'',songbook:''},songbookViewer:{handle:null,name:'',fileName:'',songs:[],selected:null,sort:'number',defaultImage:'00_Spring_VideoPsalms-Blank.png'}};
 const $=id=>document.getElementById(id);
 function log(msg,type=''){const d=document.createElement('div');d.textContent=`[${new Date().toLocaleTimeString()}] ${msg}`;if(type==='good')d.style.color='var(--good)';if(type==='bad')d.style.color='var(--bad)';if(type==='warn')d.style.color='var(--warn)';$('log').appendChild(d);$('log').scrollTop=$('log').scrollHeight}
 function setPath(id,h,msg='Not selected'){$(id).textContent=h?h.name:msg}
@@ -573,13 +573,13 @@ async function refreshActiveTabFromLoadedPair(force=false){
 async function onPairLoaded(){
   resetOrphanHeaderLyricsPanel();
   renderHeaderLyricsPanel();
-  if(state.activeTab==='audit')scanHeaderLyricsCandidates();
+  if(state.activeTab==='audit')scanHeaderLyricsCandidates(false);
   await refreshActiveTabFromLoadedPair(true);
 }
 async function onActiveTabChanged(name){
   state.activeTab=name;
   await refreshActiveTabFromLoadedPair(false);
-  if(name==='audit'&&state.current)scanHeaderLyricsCandidates();
+  if(name==='audit'&&state.current)scanHeaderLyricsCandidates(false);
 }
 async function compareCurrent(){if(!state.current)throw new Error('No songbook pair loaded. Pick a pair or use Scan + compare all.');state.diffs=compareObjects(state.current.centralObj,state.current.localObj,state.current.pairName);$('diffCount').textContent=`${state.diffs.length} changed groups`;const v=state.diffs.reduce((n,d)=>n+d.changes.filter(c=>c.category==='visual').length,0);$('visualCount').textContent=`${v} visual changes`;const modeText=state.diffs.modeStatus?` Local appears to be in ${state.diffs.modeStatus} mode. This is not counted as a change.`:'';$('compareSummary').className=state.diffs.length?'notice':'notice ok';$('compareSummary').textContent=state.diffs.length?`Found ${state.diffs.length} changed groups in ${state.current.pairName}.${modeText}`:`No real edits found.${modeText||' Central and Local match.'}`;await renderDiffs();return state.diffs}
 function countBilingualVerseFields(root){let total=0;for(const {song} of collectSongs(root)){for(const v of (song.Verses||[])){if(v&&typeof v.Text==='string'&&hasColorBlocks(v.Text))total++}}return total}
@@ -856,13 +856,14 @@ function collectMisplacedHeaderLyrics(obj,side='Local'){
   return rows;
 }
 async function scanMisplacedHeaderLyricsLoaded(){
-  scanHeaderLyricsCandidates();
+  scanHeaderLyricsCandidates(true);
 }
 function currentHeaderLyricsOwnerKey(){if(!state.current)return'';return `${state.current.localName||''}::${state.current.pairFileName||''}::${state.current.pairName||''}`;}
 function resetOrphanHeaderLyricsPanel(message=''){
   state.headerLyricsRows=[];
   state.headerLyricsSelectedKeys=new Set();
   state.headerLyricsConfirming=false;
+  state.headerLyricsPanelOpen=false;
   state.headerLyricsOwnerKey=currentHeaderLyricsOwnerKey();
   state.headerLyricsMessage=message;
   state.headerLyricsMessageType=message?'warn':'';
@@ -881,6 +882,7 @@ function getSelectedHeaderLyricsKeys(){
 function renderHeaderLyricsPanel(message=state.headerLyricsMessage||'',type=state.headerLyricsMessageType||''){
   const panel=$('headerLyricsPanel');
   if(!panel)return;
+  if(!state.headerLyricsPanelOpen){panel.classList.add('hidden');return;}
   panel.classList.remove('hidden');
   const statusCls=type==='bad'?'notice danger':type==='good'?'notice ok':'notice';
   const statusHtml=message?`<div class="${statusCls}" style="margin-bottom:10px">${esc(message)}</div>`:'';
@@ -901,7 +903,7 @@ function renderHeaderLyricsPanel(message=state.headerLyricsMessage||'',type=stat
       </div>`;
     }).join('');
   }
-  panel.innerHTML=`<div class="diffHead"><div><div class="diffTitle">Orphan Header Lyrics Candidates</div><div class="muted">Find and repair sections where Header.Template likely contains normal lyrics.</div></div></div>
+  panel.innerHTML=`<div class="diffHead"><div><div class="diffTitle">Orphan Header Lyrics Candidates</div><div class="muted">Find and repair sections where Header.Template likely contains normal lyrics.</div></div><button id="headerLyricsCloseBtn" class="small">Close ✕</button></div>
   ${statusHtml}
   <div class="row" style="margin-bottom:10px">
     <button id="headerLyricsScanBtn" class="purple">Audit Orphan Header Lyrics</button>
@@ -913,6 +915,7 @@ function renderHeaderLyricsPanel(message=state.headerLyricsMessage||'',type=stat
   <div id="headerLyricsConfirm" class="${state.headerLyricsConfirming?'':'hidden'}" style="margin-bottom:10px"></div>
   ${listHtml}`;
   state.headerLyricsMessage=message;state.headerLyricsMessageType=type;
+  $('headerLyricsCloseBtn').onclick=()=>{state.headerLyricsPanelOpen=false;state.headerLyricsConfirming=false;renderHeaderLyricsPanel();};
   $('headerLyricsScanBtn').onclick=scanHeaderLyricsCandidates;
   $('headerLyricsSelectAllBtn').onclick=()=>{state.headerLyricsSelectedKeys=new Set(rows.map(r=>headerLyricsCandidateKey(r)));renderHeaderLyricsPanel(message,type)};
   $('headerLyricsClearBtn').onclick=()=>{state.headerLyricsSelectedKeys=new Set();renderHeaderLyricsPanel(message,type)};
@@ -920,8 +923,9 @@ function renderHeaderLyricsPanel(message=state.headerLyricsMessage||'',type=stat
   if(state.headerLyricsConfirming)prepareApplyHeaderLyricsRepair(true);
   document.querySelectorAll('#headerLyricsPanel input[data-header-lyrics-key]').forEach(el=>el.onchange=()=>{if(el.checked)state.headerLyricsSelectedKeys.add(el.dataset.headerLyricsKey);else state.headerLyricsSelectedKeys.delete(el.dataset.headerLyricsKey);renderHeaderLyricsPanel(message,type)});
 }
-function scanHeaderLyricsCandidates(){
-  if(!state.current){renderHeaderLyricsPanel('Load a pair first.','bad');return;}
+function scanHeaderLyricsCandidates(openPanel=true){
+  if(!state.current){state.headerLyricsPanelOpen=openPanel;renderHeaderLyricsPanel('Load a pair first.','bad');return;}
+  state.headerLyricsPanelOpen=!!openPanel;
   ensureHeaderLyricsOwner();
   const rows=collectMisplacedHeaderLyrics(state.current.localObj,'Local');
   state.headerLyricsRows=rows;
@@ -932,7 +936,7 @@ function scanHeaderLyricsCandidates(){
   log(`Orphan Header Lyrics audit found ${rows.length} Local candidate section(s).`,rows.length?'warn':'good');
 }
 function prepareApplyHeaderLyricsRepair(keepOpen=false){
-  if(!ensureHeaderLyricsOwner()){scanHeaderLyricsCandidates();return;}
+  if(!ensureHeaderLyricsOwner()){scanHeaderLyricsCandidates(true);return;}
   const selected=getSelectedHeaderLyricsKeys();
   if(!selected.length){renderHeaderLyricsPanel('Select at least one candidate before applying repair.','bad');return;}
   const box=$('headerLyricsConfirm');
@@ -946,7 +950,7 @@ function prepareApplyHeaderLyricsRepair(keepOpen=false){
 }
 async function applyHeaderLyricsRepair(selectedKeys){
   try{
-    if(!ensureHeaderLyricsOwner()){scanHeaderLyricsCandidates();return;}
+    if(!ensureHeaderLyricsOwner()){scanHeaderLyricsCandidates(true);return;}
     const rows=(state.headerLyricsRows||[]).filter(r=>selectedKeys.includes(headerLyricsCandidateKey(r)));
     let localMoved=0;
     const applySide=(root,side)=>{
@@ -971,7 +975,7 @@ async function applyHeaderLyricsRepair(selectedKeys){
     state.headerLyricsSelectedKeys=new Set();
     state.headerLyricsConfirming=false;
     await refreshActiveTabFromLoadedPair(true);
-    scanHeaderLyricsCandidates();
+    scanHeaderLyricsCandidates(true);
     await auditLoaded(false);
     if(state.activeTab==='compare'&&state.current)await compareCurrent();
     if(state.activeTab==='songbook'&&state.current)await setSongbookViewerFromObj(state.current.localObj,state.current.pairName,state.current.localName||state.current.pairFileName||'');
@@ -1046,7 +1050,7 @@ async function renderDiffs(){const list=$('diffList');list.innerHTML='';const q=
 }
 let html=`<div class="diffHead"><div><div class="diffTitle">${esc(d.title)}</div><div class="muted">${esc(d.pairName||state.current?.pairName||'')} • ${esc(d.id)} ${hasSongStatus(d.central?.song)?'• Translation Unverified':''}</div></div><span class="pill">${changes.length} change(s)</span></div>${actions}`;for(const c of changes){html+=`<div class="change"><b>${esc(c.kind)}</b> <span class="pill ${c.category==='visual'?'warn':c.category==='lyrics'?'bad':''}">${esc(c.category)}</span>${renderChangeBoxes(c,di)}`;if(c.visual)html+=`<div class="previewRow"><div>${await previewHtml(c.local)}</div><div>${await previewHtml(c.central)}</div></div>`;html+='</div>'}html+=`<div class="diffItem hidden" id="songContext-${di}" style="margin-top:10px"></div>`;div.innerHTML=html;list.appendChild(div)}if(!shown)list.innerHTML='<div class="notice ok">No differences match this filter.</div>';document.querySelectorAll('[data-song-action]').forEach(b=>b.onclick=()=>actionSong(b.dataset.diff,b.dataset.songAction));document.querySelectorAll('[data-meta-action]').forEach(b=>b.onclick=()=>actionMeta(b.dataset.metaAction));document.querySelectorAll('[data-open-context]').forEach(b=>b.onclick=()=>{const d=state.diffs[Number(b.dataset.openContext)];if(!d)return;const panel=$(`songContext-${b.dataset.openContext}`);if(panel&&!panel.classList.contains('hidden')){panel.classList.add('hidden');panel.classList.remove('contextPanel');panel.innerHTML='';return}document.querySelectorAll('[id^=\"songContext-\"]').forEach(p=>{p.classList.add('hidden');p.classList.remove('contextPanel');p.innerHTML='';});openSongContextPanel(d,panel);panel?.scrollIntoView({behavior:'smooth',block:'nearest'})})}
 async function createMissingCentral(){const p=state.pairs.find(x=>x.key===$('pairSelect').value);if(!p||!p.local)return alert('Select a Local songbook first.');if(!state.centralDir)return alert('Pick Central folder first.');if(p.central&&!confirm('Central already exists. Overwrite from Local?'))return;const h=await getOrCreateFile(state.centralDir,centralNameFromLocal(p.local.name));await writeCentralFile(h,await readFileHandle(p.local.handle));log(`Created Central: ${centralNameFromLocal(p.local.name)}`,'good');await scanFolders()}
-async function saveCurrent(which){if(!state.current)return;const stamp=`${new Date().toISOString().slice(0,19).replace('T',' ')} - Updated ${which} with Videopsalms Command Center.`;if(which==='local'){const text=serializeVp(state.current.localObj);state.current.localText=text;await writeLocalFile(state.current.localHandle,text);await setSongbookViewerFromObj(state.current.localObj,state.current.pairName,state.current.localName||state.current.pairFileName||'');resetOrphanHeaderLyricsPanel();if(state.activeTab==='audit')scanHeaderLyricsCandidates();}else{state.current.centralObj=addChangelog(state.current.centralObj,stamp);const text=serializeVp(state.current.centralObj);state.current.centralText=text;await writeCentralFile(state.current.centralHandle,text)}}
+async function saveCurrent(which){if(!state.current)return;const stamp=`${new Date().toISOString().slice(0,19).replace('T',' ')} - Updated ${which} with Videopsalms Command Center.`;if(which==='local'){const text=serializeVp(state.current.localObj);state.current.localText=text;await writeLocalFile(state.current.localHandle,text);await setSongbookViewerFromObj(state.current.localObj,state.current.pairName,state.current.localName||state.current.pairFileName||'');resetOrphanHeaderLyricsPanel();if(state.activeTab==='audit')scanHeaderLyricsCandidates(false);}else{state.current.centralObj=addChangelog(state.current.centralObj,stamp);const text=serializeVp(state.current.centralObj);state.current.centralText=text;await writeCentralFile(state.current.centralHandle,text)}}
 async function applyLanguageAll(){if(!confirm(`Apply ${$('languageMode').value} mode to ALL Local .json files using Local data only?`))return;await scanFolders();let count=0,verses=0,cleaned=0;for(const p of state.pairs){if(!p.local)continue;try{const l=parseVp(await readFileHandle(p.local.handle));const res=transformLanguage(l,$('languageMode').value);await writeLocalFile(p.local.handle,serializeVp(res.obj));count++;verses+=res.changed;cleaned+=(res.cleaned||0)}catch(e){log(`Skipped ${p.name}: ${e.message}`,'bad')}}log(`Applied language mode to ${count} Local files. Changed ${verses} verse fields and cleaned ${cleaned} empty style override(s).`,'good');await compareAll()}
 async function scanImages(){state.imageIndex.clear();const files=await listAllFilesRecursive(state.imagesDir,n=>/\.(png|jpe?g|gif|webp|bmp)$/i.test(n));files.forEach(f=>state.imageIndex.set(f.name.toLowerCase(),f.handle));await detectThemes(files);log(`Indexed ${files.length} images.`,'good')}
 async function scanThumbs(){state.thumbIndex.clear();const files=await listAllFilesRecursive(state.thumbsDir,n=>/\.(png|jpe?g|gif|webp|bmp|mp4|mov|avi|wmv|mkv)$/i.test(n));files.forEach(f=>state.thumbIndex.set(f.name.toLowerCase(),f.handle));log(`Indexed ${files.length} thumbnails/media.`,'good')}
