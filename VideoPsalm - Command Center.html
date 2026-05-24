@@ -88,6 +88,9 @@ button.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));b
 button.purple{background:linear-gradient(135deg,#8b5cf6,#7c3aed);border-color:rgba(216,180,254,.45);color:#fff;box-shadow:0 12px 28px rgba(124,58,237,.30)}
 button.purple:hover{background:linear-gradient(135deg,#9a70ff,#8b5cf6);border-color:rgba(233,213,255,.66);box-shadow:0 14px 30px rgba(124,58,237,.40)}
 button.purple:focus-visible{outline:2px solid #c4b5fd;outline-offset:2px}
+button.scanWarn{background:linear-gradient(135deg,#f59e0b,#facc15);border-color:rgba(255,214,102,.85);color:#201500;box-shadow:0 12px 28px rgba(245,158,11,.34)}
+button.scanWarn:hover{background:linear-gradient(135deg,#fbbf24,#fde047);border-color:rgba(255,229,153,.95);box-shadow:0 14px 30px rgba(245,158,11,.40)}
+button.scanWarn:disabled{opacity:1;cursor:not-allowed;transform:none}
 button.good{border-color:rgba(69,212,131,.28);color:#ccffdf;background:rgba(69,212,131,.10)}
 button.bad{border-color:rgba(255,95,109,.28);color:#ffd7db;background:rgba(255,95,109,.10)}
 button.small{font-size:12px;padding:7px 10px;border-radius:12px}.wide{width:100%}.search{min-width:260px}
@@ -102,7 +105,7 @@ button.small{font-size:12px;padding:7px 10px;border-radius:12px}.wide{width:100%
 .themeGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}.thumb{max-width:100%;height:124px;object-fit:cover;border-radius:16px;border:1px solid var(--line);background:rgba(0,0,0,.25)}
 table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}td,th{text-align:left;padding:10px;vertical-align:top}th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.1em}tbody tr{background:rgba(255,255,255,.045)}tbody td:first-child{border-radius:14px 0 0 14px}tbody td:last-child{border-radius:0 14px 14px 0}.empty{padding:34px;text-align:center;color:var(--muted)}a{color:var(--accent)}
 .box.mono,.diffBox,.changeLogText{white-space:pre-wrap;overflow:auto;overflow-wrap:anywhere;line-height:1.5}.box.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.diffDel{background:rgba(255,95,109,.16);color:#ffd5d9;text-decoration:line-through;text-decoration-thickness:1.5px}.diffIns{background:rgba(69,212,131,.16);color:#ccffdf}.diffSame{color:inherit}.previewRow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}.changeLogMeta{font-size:12px;color:var(--muted);margin-bottom:8px}.changeLogText{max-height:260px}
-.toast{position:fixed;right:18px;bottom:18px;z-index:80;padding:10px 14px;border-radius:12px;border:1px solid var(--line2);background:rgba(11,17,38,.96);color:#dce9f8;font-size:13px;box-shadow:0 10px 24px rgba(0,0,0,.32);opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .18s ease,transform .18s ease}
+.toast{position:fixed;left:18px;top:18px;z-index:80;padding:10px 14px;border-radius:12px;border:1px solid var(--line2);background:rgba(11,17,38,.96);color:#dce9f8;font-size:13px;box-shadow:0 10px 24px rgba(0,0,0,.32);opacity:0;pointer-events:none;transform:translateY(-8px);transition:opacity .18s ease,transform .18s ease}
 .toast.show{opacity:1;transform:translateY(0)}
 .toast.good{border-color:rgba(69,212,131,.35);color:#ccffdf}
 .toast.bad{border-color:rgba(255,95,109,.35);color:#ffd7db}
@@ -285,8 +288,7 @@ table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}td
         <div class="heroTitle">Start here</div>
         <div class="heroActions">
           <button id="pickRoot" class="primary">Pick VideoPsalm root</button>
-          <button class="primary" id="scanCompareAllBtn">Scan + compare all</button>
-          <button id="scanBtn">Scan only</button>
+          <button class="primary" id="scanCompareAllBtn">Scan</button>
         </div>
         <div class="path" id="rootPath">Root not selected</div>
         <div class="path">Best workflow: choose <button id="copyRootPathBtn" class="linklike" type="button">G:\Shared drives\Tech Desk\VideoPslam</button> once. The tool will look for SongBooks, Central, Images, and Videos\Thumbs.</div>
@@ -294,7 +296,7 @@ table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}td
       <div class="heroCard">
         <div class="heroTitle">Current loaded pair</div>
         <div><span class="pill" id="loadedStatus">No pair loaded</span> <span class="pill" id="diffCount">0 differences</span> <span class="pill" id="visualCount">0 visual changes</span></div>
-        <div class="path" id="batchSummary">Pick folders, then click Scan + compare all.</div>
+        <div class="path" id="batchSummary">Pick folders, then click Scan.</div>
       </div>
     </div>
   </section>
@@ -351,6 +353,28 @@ function log(msg,type=''){const d=document.createElement('div');d.textContent=`[
 function setPath(id,h,msg='Not selected'){const el=$(id);if(!el)return;el.textContent=h?h.name:msg}
 let toastTimer=null;
 function showToast(message,type='good'){const el=$('toast');if(!el)return;el.textContent=message;el.className=`toast ${type} show`;if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3000)}
+async function hasUsableVideoPsalmRoot(){
+  if(!state.rootDir)return false;
+  try{
+    const perm=await state.rootDir.queryPermission({mode:'readwrite'});
+    if(perm!=='granted')return false;
+    for await(const _ of state.rootDir.entries()){break;}
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+async function updateScanButtonState(){
+  const btn=$('scanCompareAllBtn');
+  if(!btn)return false;
+  const ready=await hasUsableVideoPsalmRoot();
+  btn.disabled=!ready;
+  btn.classList.toggle('scanWarn',!ready);
+  btn.title=ready?'':'Choose the VideoPsalm root folder first.';
+  const rootStatus=ready?'ready':(state.rootDir?'remembered but permission needed':'not selected');
+  btn.dataset.rootStatus=rootStatus;
+  return ready;
+}
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function baseName(n){return n.replace(/\.central$/i,'').replace(/\.json$/i,'')}
 function centralNameFromLocal(n){return n.replace(/\.json$/i,'.central')}
@@ -416,8 +440,9 @@ async function applyRootFolders(){if(!state.rootDir)return;setPath('rootPath',st
   let thumbs=await trySubdir(state.rootDir,['Videos','Thumbs']);if(thumbs){state.thumbsDir=thumbs;setPath('thumbsPath',thumbs);await saveHandle('thumbsDir',thumbs);await scanThumbs()}
   await findRootStyleFiles();
   await renderCurrentThemeSettings();
+  await updateScanButtonState();
   log('Root folder wiring complete.','good')}
-async function restoreSavedFolders(){for(const [key,prop,pathId] of [['rootDir','rootDir','rootPath'],['songBooksDir','songBooksDir','songBooksPath'],['centralDir','centralDir','centralPath'],['imagesDir','imagesDir','imagesPath'],['thumbsDir','thumbsDir','thumbsPath']]){const h=await loadHandle(key);if(h&&await ensurePerm(h)){state[prop]=h;setPath(pathId,h);log('Restored '+key+'.','good')}}if(state.rootDir)await applyRootFolders();if(state.imagesDir&&!state.imageIndex.size)await scanImages();if(state.thumbsDir&&!state.thumbIndex.size)await scanThumbs();if(state.songBooksDir)await autoFindCentral()}
+async function restoreSavedFolders(){for(const [key,prop,pathId] of [['rootDir','rootDir','rootPath'],['songBooksDir','songBooksDir','songBooksPath'],['centralDir','centralDir','centralPath'],['imagesDir','imagesDir','imagesPath'],['thumbsDir','thumbsDir','thumbsPath']]){const h=await loadHandle(key);if(h&&await ensurePerm(h)){state[prop]=h;setPath(pathId,h);log('Restored '+key+'.','good')}}if(state.rootDir)await applyRootFolders();if(state.imagesDir&&!state.imageIndex.size)await scanImages();if(state.thumbsDir&&!state.thumbIndex.size)await scanThumbs();if(state.songBooksDir)await autoFindCentral();await updateScanButtonState()}
 function parseVp(t){
   t=String(t??'').replace(/^\uFEFF/,'').trim();
   try{return JSON.parse(t)}catch(e){}
@@ -581,7 +606,7 @@ async function onActiveTabChanged(name){
   await refreshActiveTabFromLoadedPair(false);
   if(name==='purge'&&state.current)scanHeaderLyricsCandidates(false);
 }
-async function compareCurrent(){if(!state.current)throw new Error('No songbook pair loaded. Pick a pair or use Scan + compare all.');state.diffs=compareObjects(state.current.centralObj,state.current.localObj,state.current.pairName);$('diffCount').textContent=`${state.diffs.length} changed groups`;const v=state.diffs.reduce((n,d)=>n+d.changes.filter(c=>c.category==='visual').length,0);$('visualCount').textContent=`${v} visual changes`;const modeText=state.diffs.modeStatus?` Local appears to be in ${state.diffs.modeStatus} mode. This is not counted as a change.`:'';$('compareSummary').className=state.diffs.length?'notice':'notice ok';$('compareSummary').textContent=state.diffs.length?`Found ${state.diffs.length} changed groups in ${state.current.pairName}.${modeText}`:`No real edits found.${modeText||' Central and Local match.'}`;await renderDiffs();return state.diffs}
+async function compareCurrent(){if(!state.current)throw new Error('No songbook pair loaded. Pick a pair or use Scan.');state.diffs=compareObjects(state.current.centralObj,state.current.localObj,state.current.pairName);$('diffCount').textContent=`${state.diffs.length} changed groups`;const v=state.diffs.reduce((n,d)=>n+d.changes.filter(c=>c.category==='visual').length,0);$('visualCount').textContent=`${v} visual changes`;const modeText=state.diffs.modeStatus?` Local appears to be in ${state.diffs.modeStatus} mode. This is not counted as a change.`:'';$('compareSummary').className=state.diffs.length?'notice':'notice ok';$('compareSummary').textContent=state.diffs.length?`Found ${state.diffs.length} changed groups in ${state.current.pairName}.${modeText}`:`No real edits found.${modeText||' Central and Local match.'}`;await renderDiffs();return state.diffs}
 function countBilingualVerseFields(root){let total=0;for(const {song} of collectSongs(root)){for(const v of (song.Verses||[])){if(v&&typeof v.Text==='string'&&hasColorBlocks(v.Text))total++}}return total}
 function detectLocalLanguageMode(centralObj,localObj){
   const counts={normal:0,main:0,second:0,split:0,edited:0,total:0};
@@ -643,7 +668,7 @@ function unverifiedDashboardStatus(r){
   return {label:`${n} unverified`,cls:'warn',note:'Review translations in Central'};
 }
 async function compareAll(){await scanFolders();state.batch=[];let changed=0,same=0,problems=0,modeOnly=0;$('batchSummary').className='notice';$('batchSummary').textContent='Comparing all pairs...';renderDashboard();for(const p of state.pairs){if(!p.local||!p.central){state.batch.push({pair:p,status:'problem',diffs:[],error:p.local?'Missing Central':'Missing Local',auditCounts:{local:0,central:0,total:0},unverifiedCount:0,languageMode:{label:'Unknown',cls:'warn',note:'Missing pair file'}});problems++;continue}try{const [lt,ct]=await Promise.all([readFileHandle(p.local.handle),readFileHandle(p.central.handle)]);const l=parseVp(lt),c=parseVp(ct);const diffs=compareObjects(c,l,p.name);const localAudit=auditRawSongbook(lt,p.name,'Local').length;const centralAudit=auditRawSongbook(ct,p.name,'Central').length;const unverified=collectUnverifiedRows(c,p.name,'Central').length;const languageMode=dashboardLanguageMode(diffs,c,l);let status=diffs.length?'changed':((diffs.modeStatus||['Split'].includes(languageMode.label))?'mode':'same');state.batch.push({pair:p,status,diffs,modeStatus:diffs.modeStatus||languageMode.label,localObj:l,centralObj:c,localText:lt,centralText:ct,auditCounts:{local:localAudit,central:centralAudit,total:localAudit+centralAudit},unverifiedCount:unverified,languageMode});if(diffs.length)changed++;else if(status==='mode'){same++;modeOnly++;}else same++}catch(e){state.batch.push({pair:p,status:'problem',diffs:[],error:e.message,auditCounts:{local:0,central:0,total:0},unverifiedCount:0,languageMode:{label:'Unknown',cls:'warn',note:'Could not parse pair'}});problems++}}$('pairCount').textContent=`${state.pairs.length} pairs`;$('changedCount').textContent=`${changed} changed`;$('sameCount').textContent=`${same} no real edits`;$('problemCount').textContent=`${problems} problems`;$('batchSummary').className=changed||problems?'notice':'notice ok';$('batchSummary').textContent=changed||problems?`Done. ${changed} real-change pair(s), ${same} pair(s) with no real edits, ${modeOnly} mode-only, ${problems} problem(s). Mode-only Local files are not counted as changes.`:`Done. No real edits found. ${modeOnly} pair(s) are mode-only Local files.`;renderDashboard();log(`Batch compare complete: ${changed} changed, ${same} no real edits, ${modeOnly} mode-only, ${problems} problems.`,'good')}
-function renderDashboard(){const q=($('dashSearch').value||'').toLowerCase(),show=$('showUnchanged').checked;const rows=state.batch.filter(r=>(show||r.status==='changed'||r.status==='problem')&&r.pair.name.toLowerCase().includes(q));if(!rows.length){$('dashboardList').innerHTML='<div class="notice ok">No real changed pairs to show. Turn on “Show unchanged” to see mode-only or matching songbooks.</div>';return}let html='<div class="dashGrid">';for(const r of rows){const cmp=compareDashboardStatus(r);const aud=auditDashboardStatus(r);const unv=unverifiedDashboardStatus(r);const lang=r.languageMode||{label:r.modeStatus?'Mode only':'Unknown',cls:r.modeStatus?'warn':'warn',note:r.modeStatus||'Run Scan + compare all'};html+=`<div class="dashCard">
+function renderDashboard(){const q=($('dashSearch').value||'').toLowerCase(),show=$('showUnchanged').checked;const rows=state.batch.filter(r=>(show||r.status==='changed'||r.status==='problem')&&r.pair.name.toLowerCase().includes(q));if(!rows.length){$('dashboardList').innerHTML='<div class="notice ok">No real changed pairs to show. Turn on “Show unchanged” to see mode-only or matching songbooks.</div>';return}let html='<div class="dashGrid">';for(const r of rows){const cmp=compareDashboardStatus(r);const aud=auditDashboardStatus(r);const unv=unverifiedDashboardStatus(r);const lang=r.languageMode||{label:r.modeStatus?'Mode only':'Unknown',cls:r.modeStatus?'warn':'warn',note:r.modeStatus||'Run Scan'};html+=`<div class="dashCard">
   <div class="dashBookWrap"><div class="dashBook">${esc(r.pair.name)}</div><div class="dashSub">${r.pair.local?'Local ✓':'Local missing'} • ${r.pair.central?'Central ✓':'Central missing'}</div></div>
   <div class="dashMetric"><div class="dashColLabel">Compare Status</div><span class="pill ${cmp.cls}">${esc(cmp.label)}</span><div class="dashNote">${esc(cmp.note)}</div></div>
   <div class="dashMetric"><div class="dashColLabel">Audit Status</div><span class="pill ${aud.cls}">${esc(aud.label)}</span><div class="dashNote">${esc(aud.note)}</div></div>
@@ -1450,8 +1475,8 @@ async function openSongbookViewer(){
 
 async function switchTab(name){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));['dashboard','compare','changelog','audit','purge','unverified','themes','files','songbook','rules'].forEach(n=>$('tab-'+n).classList.toggle('hidden',n!==name));await onActiveTabChanged(name);}
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchTab(t.dataset.tab));
-$('pickRoot').onclick=async()=>{state.rootDir=await pickDir('VideoPsalm root','rootDir');await applyRootFolders()};
-$('scanBtn').onclick=scanFolders;$('scanCompareAllBtn').onclick=compareAll;$('loadPairBtn').textContent='Reload selected pair';$('loadPairBtn').onclick=async()=>{await loadSelectedPair();await onPairLoaded();};$('pairSelect').onchange=async()=>{try{await loadSelectedPair();await onPairLoaded();}catch(e){alert(e.message);log(e.message,'bad')}};$('compareBtn').onclick=async()=>{try{await loadSelectedPair();await onPairLoaded();switchTab('compare')}catch(e){alert(e.message);log(e.message,'bad')}};$('makeCentralBtn').onclick=createMissingCentral;
+$('pickRoot').onclick=async()=>{state.rootDir=await pickDir('VideoPsalm root','rootDir');await applyRootFolders();await updateScanButtonState()};
+$('scanCompareAllBtn').onclick=async()=>{const ready=await updateScanButtonState();if(!ready){showToast('Choose the VideoPsalm root folder first.','bad');log('Root status: '+($('scanCompareAllBtn').dataset.rootStatus||'not selected')+'.','warn');return;}await compareAll();await updateScanButtonState();};$('loadPairBtn').textContent='Reload selected pair';$('loadPairBtn').onclick=async()=>{await loadSelectedPair();await onPairLoaded();};$('pairSelect').onchange=async()=>{try{await loadSelectedPair();await onPairLoaded();}catch(e){showToast(e.message,'bad');log(e.message,'bad')}};$('compareBtn').onclick=async()=>{try{await loadSelectedPair();await onPairLoaded();switchTab('compare')}catch(e){showToast(e.message,'bad');log(e.message,'bad')}};$('makeCentralBtn').onclick=createMissingCentral;
 $('applyLanguageLoadedBtn').onclick=async()=>{if(!state.current)return alert('Load a pair first.');if(!confirm(`Apply ${$('languageMode').value} mode to loaded Local using Local data only?`))return;const r=transformLanguage(state.current.localObj,$('languageMode').value);state.current.localObj=r.obj;await saveCurrent('local');log(`Applied language mode to loaded Local. Changed ${r.changed} verse fields and cleaned ${r.cleaned||0} empty style override(s).`,'good');await compareCurrent()};$('applyLanguageAllBtn').onclick=applyLanguageAll;
 $('cleanNoOpLocalBtn').onclick=()=>cleanNoOpStylesLoaded('local');
 $('cleanNoOpCentralBtn').onclick=()=>cleanNoOpStylesLoaded('central');
@@ -1470,5 +1495,5 @@ async function copyRootPathExample(){
 }
 $('copyRootPathBtn').onclick=copyRootPathExample;
 $('openSongbookViewerBtn').onclick=openSongbookViewer;$('songbookSearch').oninput=renderSongbookList;$('songbookSort').onchange=e=>{state.songbookViewer.sort=e.target.value;renderSongbookList();};$('changeLogLoadedBtn').textContent='Refresh loaded pair';$('changeLogLoadedBtn').onclick=showLoadedChangeLog;$('changeLogAllBtn').onclick=showAllChangeLogs;$('changeLogSearch').oninput=()=>renderChangeLogRows();$('changeLogSource').onchange=async()=>{if(state.current){await showLoadedChangeLog(false);await refreshActiveTabFromLoadedPair(true);}else if(state.batch?.length)await showAllChangeLogs()};$('auditLoadedBtn').textContent='Refresh loaded pair';$('auditLoadedBtn').onclick=auditLoaded;$('auditAllBtn').onclick=auditAll;$('auditSearch').oninput=()=>renderAuditRows();$('auditLevel').onchange=()=>renderAuditRows();$('scanUnverifiedLoadedBtn').textContent='Refresh loaded Central';$('scanUnverifiedLoadedBtn').onclick=scanUnverifiedLoaded;$('scanUnverifiedAllBtn').onclick=scanUnverifiedAll;$('unverifiedSearch').oninput=()=>renderUnverifiedRows();$('scanThemesBtn').onclick=async()=>{if(!state.imagesDir){log('Pick Images folder first.','bad');return;}await scanImages()};$('diffSearch').oninput=renderDiffs;$('diffFilter').onchange=renderDiffs;$('dashSearch').oninput=renderDashboard;$('showUnchanged').onchange=renderDashboard;
-(async function init(){if(window.showDirectoryPicker){await restoreSavedFolders()}else{log('This browser cannot edit folders directly. Use Chrome or Edge.','bad')}log('Ready. Pick VideoPsalm root, then Scan + compare all.')})();
+(async function init(){if(window.showDirectoryPicker){await restoreSavedFolders()}else{log('This browser cannot edit folders directly. Use Chrome or Edge.','bad')}const ready=await updateScanButtonState();if(!ready&&state.rootDir){showToast('VideoPsalm root permission needs to be selected again.','bad');log('Root status: remembered but permission needed.','warn')}log('Ready. Pick VideoPsalm root, then Scan.')})();
 </script></body></html>
