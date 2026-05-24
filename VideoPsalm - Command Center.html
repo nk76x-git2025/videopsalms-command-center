@@ -334,7 +334,7 @@ table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}td
         <div id="tab-dashboard"><div class="toolbar"><div class="row"><label class="muted"><input type="checkbox" id="showUnchanged"> Show unchanged</label><input id="dashSearch" class="search" placeholder="Filter songbooks..."></div></div><div id="dashboardList"></div></div>
         <div id="tab-compare" class="hidden"><div class="toolbar"><div></div><div class="row"><input id="diffSearch" class="search" placeholder="Filter differences..."><select id="diffFilter"><option value="all">All</option><option value="lyrics">Lyrics</option><option value="visual">Visual/style</option><option value="metadata">Metadata</option><option value="missing">Added/deleted</option></select></div></div><div id="compareSummary" class="notice">Load or select a changed pair from Dashboard.</div><div id="diffList"></div></div>
         <div id="tab-changelog" class="hidden"><div class="toolbar"><div><span class="pill" id="changeLogCount">0 entries</span></div><div class="row"><input id="changeLogSearch" class="search" placeholder="Filter change log..."><select id="changeLogSource"><option value="central">Central only</option><option value="local">Local only</option><option value="both">Both</option></select><button id="changeLogLoadedBtn">Show loaded pair</button><button id="changeLogAllBtn" class="primary">Show all logs</button></div></div><div class="notice">Change log entries are read from the songbook Description field and are not counted as compare changes.</div><div id="changeLogList" style="margin-top:12px"></div></div>
-        <div id="tab-audit" class="hidden"><div class="toolbar"><div><span class="pill" id="auditCount">0 audit items</span> <span class="pill warn">Song level + Verse level + media refs</span></div><div class="row"><input id="auditSearch" class="search" placeholder="Filter audit..."><select id="auditSource"><option value="local">Local only</option><option value="central">Central only</option><option value="both">Both</option></select><select id="auditLevel"><option value="all">All levels</option><option value="song">Song level</option><option value="verse">Verse level</option></select><button id="auditLoadedBtn">Audit loaded pair</button><button id="auditAllBtn" class="primary">Audit all pairs</button></div></div><div class="notice">Audit scans embedded style overrides inside the songbook files themselves and shows media previews when a referenced image/thumb can be found.</div><div id="auditList" style="margin-top:12px"></div></div>
+        <div id="tab-audit" class="hidden"><div class="toolbar"><div><span class="pill" id="auditCount">0 audit items</span> <span class="pill warn">Song level + Verse level + media refs</span></div><div class="row"><input id="auditSearch" class="search" placeholder="Filter audit..."><select id="auditSource"><option value="local">Local only</option><option value="central">Central only</option><option value="both">Both</option></select><select id="auditLevel"><option value="all">All levels</option><option value="song">Song level</option><option value="verse">Verse level</option></select><select id="auditType"><option value="all">All override types</option><option value="Color edits">Color edits</option><option value="Text style edits">Text style edits</option><option value="Body position">Body position</option><option value="Footer position">Footer position</option><option value="Header position">Header position</option><option value="Background image">Background image</option><option value="Background video">Background video</option><option value="Missing image/video">Missing image/video</option><option value="Luminosity">Luminosity</option><option value="Empty style">Empty style</option><option value="Empty header style">Empty header style</option><option value="Empty footer style">Empty footer style</option><option value="Header style">Header style</option><option value="Footer style">Footer style</option><option value="Wrap">Wrap</option><option value="Max line count">Max line count</option><option value="Looping background">Looping background</option><option value="Font face">Font face</option><option value="Other">Other</option></select><button id="auditLoadedBtn">Audit loaded pair</button><button id="auditAllBtn" class="primary">Audit all pairs</button></div></div><div class="notice">Audit scans embedded style overrides inside the songbook files themselves and shows media previews when a referenced image/thumb can be found.</div><div id="auditList" style="margin-top:12px"></div></div>
         <div id="tab-purge" class="hidden"><div class="toolbar"><div><span class="pill warn">Modifies loaded songbook data</span></div></div><div class="notice danger">Purge actions modify files. Confirm each action carefully. A backup is created before every save.</div><div id="purgeStatus" class="notice" style="margin-top:12px">Load a pair, then choose a purge action.</div><div class="box" style="margin-top:12px"><h2>Purge Local</h2><div class="muted">Affects loaded Local (.json) file only. Backup created before saving.</div><div class="row" style="margin-top:10px"><button id="scanHeaderLyricsBtn" class="purple">Purge Orphan Header Lyrics</button><button id="cleanNoOpLocalBtn">Purge Local Empty Style Overrides</button></div><div id="headerLyricsPanel" class="diffItem hidden" style="margin-top:12px"></div></div><div class="box" style="margin-top:12px"><h2>Purge Central</h2><div class="muted">Affects loaded Central (.central) file only. Backup created before saving.</div><div class="row" style="margin-top:10px"><button id="cleanNoOpCentralBtn">Purge Central Empty Style Overrides</button></div></div><div id="purgeConfirmPanel" class="diffItem hidden" style="margin-top:12px"></div></div>
         <div id="tab-unverified" class="hidden"><div class="toolbar"><div><span class="pill warn" id="unverifiedCount">0 unverified songs</span> <span class="pill">Central copyright status scan</span></div><div class="row"><input id="unverifiedSearch" class="search" placeholder="Filter unverified songs..."><button id="scanUnverifiedLoadedBtn">Scan loaded Central</button><button id="scanUnverifiedAllBtn" class="primary">Scan all Central files</button></div></div><div class="notice">This shows songs that contain <span class="kbd">Status: Translation Unverified</span>. Use it after pushing Local lyric edits into Central so you can manually review/fix the second-language text later.</div><div id="unverifiedList" style="margin-top:12px"></div></div>
         <div id="tab-themes" class="hidden"><div class="toolbar"><div><span class="pill" id="themeCount">0 themes detected</span> <span class="pill">{Theme}_VideoPsalms-{Blank|Main|Welcome|Goodbye}.png</span></div><button id="scanThemesBtn">Scan Images for themes</button></div><div id="auxThemeWarning" class="notice danger" style="font-size:16px;font-weight:850;margin-bottom:12px;">⚠️ Make sure the Aux Local songbook is loaded before pushing a theme.</div><div class="notice">Theme preview order is Main Graphic, Welcome, Ending, Blank. <b>Push Theme to Local</b> updates the loaded Local Aux Welcome/Ending slides plus RootStyle.json Main Graphic and SongBookStyle.json Blank background. Central is not changed here.</div><div id="currentThemeStatus" class="themeCurrent" style="margin-top:12px"></div><div id="themeList" class="themeGrid" style="margin-top:12px"></div></div>
@@ -753,7 +753,60 @@ function rawExtractDirectTopObject(text,name){
   }
   return '';
 }
-function classifyRawStyle(styleText){const rules=[['Background image/video',['Background','Image','Video','Volume','IsLooping','Stretch','Luminosity']],['Text box / placement',['HeaderRect','BodyRect','FooterRect']],['Body/Header/Footer/Chords style',['Body','Header','Footer','Chords']],['Color / fill / stroke',['Color','Fill','Stroke','StrokeThickness','ShadowColor']],['Font formatting',['FontName','FontSize','FontStyle','Bold','Italic','Underlined','CaseType']],['Line wrapping / limits',['Wrap','MaxLineCount','MaxCharacterCount']],['Template override',['Template']],['Transition / duration',['Transition','Duration']]];const found=[];for(const[r,tests]of rules)if(tests.some(t=>new RegExp('\\b'+t+'\\b').test(styleText)))found.push(r);return found.length?found:['Unknown style override']}
+function hasMissingMediaRef(mediaList=[]){
+  for(const item of (mediaList||[])){
+    const n=mediaName(item);
+    if(!n)continue;
+    let h=state.imageIndex.get(n)||state.thumbIndex.get(n);
+    if(!h&&/\.(mp4|mov|avi|wmv|mkv)$/i.test(n)){
+      const stem=n.replace(/\.[^.]+$/,'');
+      h=state.thumbIndex.get(stem+'.jpg')||state.thumbIndex.get(stem+'.png')||state.imageIndex.get(stem+'.jpg')||state.imageIndex.get(stem+'.png');
+    }
+    if(!h)return true;
+  }
+  return false;
+}
+function classifyRawStyle(styleText,media=[]){
+  const text=String(styleText||'');
+  const tags=[];
+  const add=t=>{if(!tags.includes(t))tags.push(t)};
+  const has=(re)=>re.test(text);
+  const hasColor=has(/\b(Color|Fill|Stroke|ShadowColor|Brush)\b/);
+  const hasTextStyle=has(/\b(FontStyle|Fill|Stroke|StrokeThickness|ShadowColor|ShadowDepth|ShadowDirection|ShadowRadius|Bold|Italic|Underlined)\b/);
+  const hasHeaderObj=has(/\bHeader\s*:\s*\{/);
+  const hasFooterObj=has(/\bFooter\s*:\s*\{/);
+  const headerTemplate=(text.match(/\bHeader\s*:\s*\{[\s\S]*?\bTemplate\s*:\s*"([^"]*)"/i)||[])[1];
+  const footerTemplate=(text.match(/\bFooter\s*:\s*\{[\s\S]*?\bTemplate\s*:\s*"([^"]*)"/i)||[])[1];
+  const headerEmptyObj=has(/\bHeader\s*:\s*\{\s*\}/i);
+  const footerEmptyObj=has(/\bFooter\s*:\s*\{\s*\}/i);
+  const headerTemplateEmpty=headerTemplate!=null && String(headerTemplate).trim()==='';
+  const footerTemplateEmpty=footerTemplate!=null && String(footerTemplate).trim()==='';
+  const emptyHeader=headerEmptyObj||headerTemplateEmpty;
+  const emptyFooter=footerEmptyObj||footerTemplateEmpty;
+  const emptyStyle=emptyHeader||emptyFooter;
+  if(hasColor)add('Color edits');
+  if(hasTextStyle)add('Text style edits');
+  if(has(/\bBodyRect\b/))add('Body position');
+  if(has(/\bFooterRect\b/))add('Footer position');
+  if(has(/\bHeaderRect\b/))add('Header position');
+  if(has(/\bImage\s*:/))add('Background image');
+  if(has(/\bVideo\s*:/))add('Background video');
+  if(hasMissingMediaRef(media))add('Missing image/video');
+  if(has(/\bLuminosity\b/))add('Luminosity');
+  if(emptyStyle)add('Empty style');
+  if(emptyHeader)add('Empty header style');
+  if(emptyFooter)add('Empty footer style');
+  if(has(/\bWrap\b/))add('Wrap');
+  if(has(/\bMaxLineCount\b/))add('Max line count');
+  if(has(/\bIsLooping\b/))add('Looping background');
+  if(has(/\bFontName\b/))add('Font face');
+  const headerMeaningful=hasHeaderObj&&(has(/\bHeaderRect\b/)||has(/\bHeader\s*:\s*\{[\s\S]*?\b(FontSize|FontStyle|Alignment|Align|CaseType)\b/i)||(headerTemplate!=null&&!headerTemplateEmpty));
+  const footerMeaningful=hasFooterObj&&(has(/\bFooterRect\b/)||has(/\bFooter\s*:\s*\{[\s\S]*?\b(FontSize|FontStyle|Alignment|Align|CaseType)\b/i)||(footerTemplate!=null&&!footerTemplateEmpty));
+  if(headerMeaningful)add('Header style');
+  if(footerMeaningful)add('Footer style');
+  if(!tags.length)add('Other');
+  return tags;
+}
 function rawExtractLastTopText(text){let best='',depth=0,br=0,inString=false,escp=false;for(let i=0;i<text.length;i++){const ch=text[i];if(inString){if(escp)escp=false;else if(ch==='\\')escp=true;else if(ch==='"')inString=false;continue}if(ch==='"'){inString=true;continue}if(ch==='{')depth++;else if(ch==='}')depth--;else if(ch==='[')br++;else if(ch===']')br--;if(depth===1&&br===0&&text.slice(i,i+4)==='Text'){const before=text[i-1]||'',after=text[i+4]||'';if(!/[A-Za-z0-9_]/.test(before)&&!/[A-Za-z0-9_]/.test(after)){const v=rawExtractString(text.slice(i),'Text');if(v)best=v}}}return best}
 function rawMediaRefs(styleText){const out=[];const re=/(?:Image|Video|File|Thumbnail)\s*:\s*"([^"]+)"|"([^"\\]*(?:\.(?:png|jpe?g|gif|webp|bmp|mp4|mov|avi|wmv|mkv)))"/ig;let m;while((m=re.exec(styleText)))out.push(m[1]||m[2]);return[...new Set(out)]}
 function parsedSongTitleIndex(text){
@@ -789,12 +842,12 @@ function auditRawSongbook(text,bookName,side){
     const title=resolveAuditSongTitle(parsedInfo,idx,rawId,rawGuid,rawExtractLastTopText(songText));
     const sid=rawId||rawGuid||String(idx+1);
     const songStyle=rawExtractDirectTopObject(songText,'Style');
-    if(songStyle&&!isNoOpStyleStyleText(songStyle))rows.push({book:bookName,side,title,sid,level:'Song level',where:'Whole song',styleText:songStyle,changeTypes:classifyRawStyle(songStyle),media:rawMediaRefs(songStyle)});
+    if(songStyle&&!isNoOpStyleStyleText(songStyle)){const media=rawMediaRefs(songStyle);rows.push({book:bookName,side,title,sid,level:'Song level',where:'Whole song',styleText:songStyle,changeTypes:classifyRawStyle(songStyle,media),media});}
     const versesBlock=rawExtractNamedArray(songText,'Verses');
     const verses=versesBlock?rawSplitObjects(versesBlock):[];
     verses.forEach((v,i)=>{
       const st=rawExtractDirectTopObject(v,'Style');
-      if(st&&!isNoOpStyleStyleText(st))rows.push({
+      if(st&&!isNoOpStyleStyleText(st)){const media=rawMediaRefs(st);rows.push({
         book:bookName,
         side,
         title,
@@ -802,21 +855,23 @@ function auditRawSongbook(text,bookName,side){
         level:'Verse level',
         where:sectionLabel({Tag:rawExtractScalar(v,'Tag'),ID:rawExtractScalar(v,'ID')},i),
         styleText:st,
-        changeTypes:classifyRawStyle(st),
-        media:rawMediaRefs(st),
+        changeTypes:classifyRawStyle(st,media),
+        media,
         textPreview:(rawExtractString(v,'Text')||'').replace(/<c[0-9A-Fa-f]+>|<\/c>/g,'').replace(/\s+/g,' ').slice(0,140)
-      });
+      });}
     });
   });
   return rows;
 }
-function normalizeAuditRows(rows){return rows.map(r=>{if(r.styleText&&!r.style)return r;return{...r,styleText:JSON.stringify(r.style||{},null,0),changeTypes:classifyRawStyle(JSON.stringify(r.style||{})),media:r.media||[]}})}
+function normalizeAuditRows(rows){return rows.map(r=>{if(r.styleText&&!r.style)return{...r,changeTypes:classifyRawStyle(r.styleText,r.media||[])};const styleText=JSON.stringify(r.style||{},null,0);const media=r.media||[];return{...r,styleText,changeTypes:classifyRawStyle(styleText,media),media}})}
 async function renderAuditRows(rows){
   state.auditRows=normalizeAuditRows(rows||state.auditRows||[]);
   const q=($('auditSearch')?.value||'').toLowerCase();
   const levelFilter=$('auditLevel')?.value||'all';
+  const typeFilter=$('auditType')?.value||'all';
   let list=(state.auditRows||[])
     .filter(r=>levelFilter==='all'||(levelFilter==='song'&&r.level==='Song level')||(levelFilter==='verse'&&r.level==='Verse level'))
+    .filter(r=>typeFilter==='all'||(r.changeTypes||[]).includes(typeFilter))
     .filter(r=>!q||(`${r.book} ${r.side} ${r.title} ${r.sid} ${r.level||''} ${r.where} ${(r.changeTypes||[]).join(' ')} ${r.styleText||''} ${(r.media||[]).join(' ')}`).toLowerCase().includes(q));
   $('auditCount').textContent=`${list.length} audit items`;
   if(!list.length){
@@ -1528,6 +1583,6 @@ async function copyRootPathExample(){
   }
 }
 $('copyRootPathBtn').onclick=copyRootPathExample;
-$('openSongbookViewerBtn').onclick=openSongbookViewer;$('songbookSearch').oninput=renderSongbookList;$('songbookSort').onchange=e=>{state.songbookViewer.sort=e.target.value;renderSongbookList();};$('changeLogLoadedBtn').textContent='Refresh loaded pair';$('changeLogLoadedBtn').onclick=showLoadedChangeLog;$('changeLogAllBtn').onclick=showAllChangeLogs;$('changeLogSearch').oninput=()=>renderChangeLogRows();$('changeLogSource').onchange=async()=>{if(state.current){await showLoadedChangeLog(false);await refreshActiveTabFromLoadedPair(true);}else if(state.batch?.length)await showAllChangeLogs()};$('auditLoadedBtn').textContent='Refresh loaded pair';$('auditLoadedBtn').onclick=auditLoaded;$('auditAllBtn').onclick=auditAll;$('auditSearch').oninput=()=>renderAuditRows();$('auditLevel').onchange=()=>renderAuditRows();$('scanUnverifiedLoadedBtn').textContent='Refresh loaded Central';$('scanUnverifiedLoadedBtn').onclick=scanUnverifiedLoaded;$('scanUnverifiedAllBtn').onclick=scanUnverifiedAll;$('unverifiedSearch').oninput=()=>renderUnverifiedRows();$('scanThemesBtn').onclick=async()=>{if(!state.imagesDir){log('Pick Images folder first.','bad');return;}await scanImages()};$('diffSearch').oninput=renderDiffs;$('diffFilter').onchange=renderDiffs;$('dashSearch').oninput=renderDashboard;$('showUnchanged').onchange=renderDashboard;
+$('openSongbookViewerBtn').onclick=openSongbookViewer;$('songbookSearch').oninput=renderSongbookList;$('songbookSort').onchange=e=>{state.songbookViewer.sort=e.target.value;renderSongbookList();};$('changeLogLoadedBtn').textContent='Refresh loaded pair';$('changeLogLoadedBtn').onclick=showLoadedChangeLog;$('changeLogAllBtn').onclick=showAllChangeLogs;$('changeLogSearch').oninput=()=>renderChangeLogRows();$('changeLogSource').onchange=async()=>{if(state.current){await showLoadedChangeLog(false);await refreshActiveTabFromLoadedPair(true);}else if(state.batch?.length)await showAllChangeLogs()};$('auditLoadedBtn').textContent='Refresh loaded pair';$('auditLoadedBtn').onclick=auditLoaded;$('auditAllBtn').onclick=auditAll;$('auditSearch').oninput=()=>renderAuditRows();$('auditLevel').onchange=()=>renderAuditRows();$('auditType').onchange=()=>renderAuditRows();$('scanUnverifiedLoadedBtn').textContent='Refresh loaded Central';$('scanUnverifiedLoadedBtn').onclick=scanUnverifiedLoaded;$('scanUnverifiedAllBtn').onclick=scanUnverifiedAll;$('unverifiedSearch').oninput=()=>renderUnverifiedRows();$('scanThemesBtn').onclick=async()=>{if(!state.imagesDir){log('Pick Images folder first.','bad');return;}await scanImages()};$('diffSearch').oninput=renderDiffs;$('diffFilter').onchange=renderDiffs;$('dashSearch').oninput=renderDashboard;$('showUnchanged').onchange=renderDashboard;
 (async function init(){if(window.showDirectoryPicker){await restoreSavedFolders()}else{log('This browser cannot edit folders directly. Use Chrome or Edge.','bad')}const ready=await updateScanButtonState();if(!ready&&state.rootDir){showToast('VideoPsalm root permission needs to be selected again.','bad');log('Root status: remembered but permission needed.','warn')}log('Ready. Pick VideoPsalm root, then Scan.')})();
 </script></body></html>
