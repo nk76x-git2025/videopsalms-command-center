@@ -888,8 +888,8 @@ function renderHeaderLyricsPanel(message='',type=''){
     <button id="headerLyricsApplyBtn" class="good" ${selectedCount?'':'disabled'}>Apply selected repairs</button>
   </div>
   <div class="muted" style="margin-bottom:8px">${rows.length?`Found ${rows.length} possible misplaced lyrics. Selected ${selectedCount}.`:'Run a scan to populate candidates.'}</div>
-  ${listHtml}
-  <div id="headerLyricsConfirm" class="hidden" style="margin-top:10px"></div>`;
+  <div id="headerLyricsConfirm" class="hidden" style="margin-bottom:10px"></div>
+  ${listHtml}`;
   $('headerLyricsSide').value=state.headerLyricsSide||'local';
   $('headerLyricsScanBtn').onclick=scanHeaderLyricsCandidates;
   $('headerLyricsSelectAllBtn').onclick=()=>{state.headerLyricsSelectedKeys=new Set(rows.map(r=>headerLyricsCandidateKey(r)));renderHeaderLyricsPanel(message,type)};
@@ -915,8 +915,8 @@ function prepareApplyHeaderLyricsRepair(){
   const box=$('headerLyricsConfirm');
   if(!box)return;
   box.classList.remove('hidden');
-  box.innerHTML=`<div class="notice warn">You are about to move Header.Template text into Text for ${selected.length} selected section(s). A backup will be created before saving.</div>
-    <div class="row" style="margin-top:8px"><button id="headerLyricsConfirmApply" class="good">Apply Repair</button><button id="headerLyricsConfirmCancel">Cancel</button></div>`;
+  box.innerHTML=`<div class="notice warn">You are about to move Header.Template text into Text for ${selected.length} selected section(s).<br>A backup will be created before saving.</div>
+    <div class="row" style="margin-top:8px"><button id="headerLyricsConfirmApply" class="good">Confirm Repair</button><button id="headerLyricsConfirmCancel">Cancel</button></div>`;
   $('headerLyricsConfirmApply').onclick=()=>applyHeaderLyricsRepair(selected);
   $('headerLyricsConfirmCancel').onclick=()=>box.classList.add('hidden');
 }
