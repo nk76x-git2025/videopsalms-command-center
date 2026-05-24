@@ -371,19 +371,22 @@ async function writeBackupCopy(targetHandle,text,side='local'){
       const backupName=`${targetHandle.name}.${backupStamp()}.backup.central`;
       const backupFile=await backupDir.getFileHandle(backupName,{create:true});
       await writeFileHandle(backupFile,text);
+      return `Backup/${backupName}`;
     }else{
       if(!state.songBooksDir)return;
       const backupDir=await state.songBooksDir.getDirectoryHandle('backup',{create:true});
       const backupName=`${targetHandle.name}.${backupStamp()}.backup.json`;
       const backupFile=await backupDir.getFileHandle(backupName,{create:true});
       await writeFileHandle(backupFile,text);
+      return `backup/${backupName}`;
     }
   }catch(e){
     log(`Backup skipped for ${targetHandle?.name||'file'}: ${e.message}`,'warn');
   }
+  return '';
 }
-async function writeLocalFile(handle,text){await writeBackupCopy(handle,text,'local');await writeFileHandle(handle,text)}
-async function writeCentralFile(handle,text){await writeBackupCopy(handle,text,'central');await writeFileHandle(handle,text)}
+async function writeLocalFile(handle,text){const backupPath=await writeBackupCopy(handle,text,'local');await writeFileHandle(handle,text);return backupPath}
+async function writeCentralFile(handle,text){const backupPath=await writeBackupCopy(handle,text,'central');await writeFileHandle(handle,text);return backupPath}
 async function getOrCreateFile(d,n){return await d.getFileHandle(n,{create:true})}
 async function listFiles(d,p=()=>true){const a=[];if(!d)return a;for await(const [name,h] of d.entries())if(h.kind==='file'&&p(name))a.push({name,handle:h});return a.sort((x,y)=>x.name.localeCompare(y.name))}
 async function listAllFilesRecursive(d,p=()=>true,prefix=''){const a=[];if(!d)return a;for await(const [name,h] of d.entries()){const path=prefix?`${prefix}/${name}`:name;if(h.kind==='file'&&p(name,path))a.push({name,path,handle:h});if(h.kind==='directory')a.push(...await listAllFilesRecursive(h,p,path))}return a.sort((x,y)=>x.path.localeCompare(y.path))}
@@ -487,22 +490,22 @@ function getHeaderTemplate(v){return String(v?.Style?.Header?.Template??'')}
 function setHeaderTemplate(v,text){if(!v.Style||typeof v.Style!=='object'||Array.isArray(v.Style))v.Style={};if(!v.Style.Header||typeof v.Style.Header!=='object'||Array.isArray(v.Style.Header))v.Style.Header={};v.Style.Header.Template=String(text??'')}
 function isNoOpHeaderTemplate(v){return typeof v==='string'&&v.trim()===''}
 function cleanupStyleOverride(style){
-  if(!isObj(style))return 0;
-  let removed=0;
+  if(!isObj(style))return {removedTemplates:0,removedStyleBlocks:0};
+  let removedTemplates=0,removedStyleBlocks=0;
   if(isObj(style.Header)){
     const keys=Object.keys(style.Header);
-    if(keys.length===1&&keys[0]==='Template'&&isNoOpHeaderTemplate(style.Header.Template)){delete style.Header;removed++}
+    if(keys.length===1&&keys[0]==='Template'&&isNoOpHeaderTemplate(style.Header.Template)){delete style.Header;removedTemplates++}
   }
-  if(!Object.keys(style).length)removed++;
-  return removed;
+  if(!Object.keys(style).length)removedStyleBlocks++;
+  return {removedTemplates,removedStyleBlocks};
 }
 function cleanupNoOpStyles(root){
-  const o=clone(root);let cleaned=0;
+  const o=clone(root);let removedTemplates=0,removedStyleBlocks=0;
   for(const {song} of collectSongs(o)){
-    if(isObj(song.Style)){const c=cleanupStyleOverride(song.Style);if(c){if(!Object.keys(song.Style).length)delete song.Style;cleaned+=c}}
-    for(const v of (song.Verses||[])){if(!isObj(v)||!isObj(v.Style))continue;const c=cleanupStyleOverride(v.Style);if(c){if(!Object.keys(v.Style).length)delete v.Style;cleaned+=c}}
+    if(isObj(song.Style)){const c=cleanupStyleOverride(song.Style);if(c.removedStyleBlocks)delete song.Style;removedTemplates+=c.removedTemplates;removedStyleBlocks+=c.removedStyleBlocks}
+    for(const v of (song.Verses||[])){if(!isObj(v)||!isObj(v.Style))continue;const c=cleanupStyleOverride(v.Style);if(c.removedStyleBlocks)delete v.Style;removedTemplates+=c.removedTemplates;removedStyleBlocks+=c.removedStyleBlocks}
   }
-  return {obj:o,cleaned};
+  return {obj:o,removedTemplates,removedStyleBlocks,cleaned:removedTemplates};
 }
 function isNoOpStyleStyleText(styleText){return /^{\s*Header\s*:\s*{\s*Template\s*:\s*"[^"]*"\s*}\s*}$/i.test(String(styleText||''))&&String(styleText).match(/Template\s*:\s*"([^"]*)"/i)?.[1]?.trim()===''}
 function transformLanguage(root,mode){const o=clone(root);let changed=0;for(const {song} of collectSongs(o)){for(const v of (song.Verses||[])){if(!v||typeof v.Text!=='string')continue;const before=JSON.stringify(v);const text=String(v.Text??'');const header=getHeaderTemplate(v);if(mode==='split'||mode==='header'){if(hasColorBlocks(text)){const main=toMainOnly(text);const second=toSecondOnly(text);v.Text=main;setHeaderTemplate(v,second)}}else{if(!hasColorBlocks(text)&&normalize(header)){const main=text.trim();const second=header.trim();const secondText=hasColorBlocks(second)?second:`<cFF00F2F2>${second}</c>`;v.Text=main+(main&&secondText?'\n':'')+secondText;setHeaderTemplate(v,'')}}if(JSON.stringify(v)!==before)changed++}}const cleaned=cleanupNoOpStyles(o);return{obj:cleaned.obj,changed,cleaned:cleaned.cleaned}}
@@ -675,7 +678,7 @@ function sectionLabel(v,idx){
   return hasId?`${base} ${String(rawId).trim()}`:base;
 }
 function flattenKeys(obj,prefix=''){const out=[];function walk(n,path){if(!n||typeof n!=='object')return;if(Array.isArray(n)){n.forEach((v,i)=>walk(v,`${path}[${i}]`));return}for(const[k,v]of Object.entries(n)){const p=path?`${path}.${k}`:k;if(v&&typeof v==='object')walk(v,p);else out.push(`${p}: ${String(v)}`)}}walk(obj,prefix);return out}
-function collectAuditRows(obj,bookName,side){const rows=[];for(const {song,path} of collectSongs(obj)){const title=getTitle(song),sid=getSongId(song);if(song.Style&&cleanupStyleOverride(clone(song.Style))===0){rows.push({book:bookName,side,title,sid,level:'Song level',where:'Whole song',style:song.Style,media:collectVisualRefs(song.Style).map(x=>x.value)})}const verses=Array.isArray(song.Verses)?song.Verses:[];verses.forEach((v,i)=>{if(v&&v.Style&&cleanupStyleOverride(clone(v.Style))===0)rows.push({book:bookName,side,title,sid,level:'Verse level',where:sectionLabel(v,i),style:v.Style,media:collectVisualRefs(v.Style).map(x=>x.value)})})}return rows}
+function collectAuditRows(obj,bookName,side){const rows=[];for(const {song,path} of collectSongs(obj)){const title=getTitle(song),sid=getSongId(song);if(song.Style&&cleanupStyleOverride(clone(song.Style)).removedTemplates===0){rows.push({book:bookName,side,title,sid,level:'Song level',where:'Whole song',style:song.Style,media:collectVisualRefs(song.Style).map(x=>x.value)})}const verses=Array.isArray(song.Verses)?song.Verses:[];verses.forEach((v,i)=>{if(v&&v.Style&&cleanupStyleOverride(clone(v.Style)).removedTemplates===0)rows.push({book:bookName,side,title,sid,level:'Verse level',where:sectionLabel(v,i),style:v.Style,media:collectVisualRefs(v.Style).map(x=>x.value)})})}return rows}
 
 function rawFindMatching(text,start,open,close){let depth=0,inString=false,escp=false;for(let i=start;i<text.length;i++){const ch=text[i];if(inString){if(escp)escp=false;else if(ch==='\\')escp=true;else if(ch==='"')inString=false;continue}if(ch==='"'){inString=true;continue}if(ch===open)depth++;else if(ch===close){depth--;if(depth===0)return i}}return-1}
 function rawFindKey(text,name,start=0){const re=new RegExp('(?:^|[,\\{\\s])'+name.replace(/[.*+?^${}()|[\\]\\]/g,'\\$&')+'\\s*:','g');re.lastIndex=start;const m=re.exec(text);return m?m.index+m[0].indexOf(name):-1}
@@ -788,9 +791,23 @@ async function cleanNoOpStylesLoaded(side='local'){
   const which=side==='central'?'Central':'Local';
   if(!confirm(`Clean empty/no-op style overrides in loaded ${which} file?`))return;
   if(side==='central'){
-    const res=cleanupNoOpStyles(state.current.centralObj);state.current.centralObj=res.obj;state.current.centralText=serializeVp(res.obj);if(res.cleaned)await writeCentralFile(state.current.centralHandle,state.current.centralText);log(res.cleaned?`Cleaned ${res.cleaned} empty style override(s) from Central.`:'No empty style overrides found in Central.',res.cleaned?'good':'warn');
+    const res=cleanupNoOpStyles(state.current.centralObj);state.current.centralObj=res.obj;state.current.centralText=serializeVp(res.obj);
+    if(res.cleaned){
+      const backupPath=await writeCentralFile(state.current.centralHandle,state.current.centralText);
+      const saved=await readFileHandle(state.current.centralHandle);
+      const hasEmpty=/Header\s*:\s*{\s*Template\s*:\s*"(\s*)"\s*}/i.test(saved);
+      log(`Cleaned ${res.removedTemplates} empty style override(s) from Central. Removed ${res.removedStyleBlocks} empty Style block(s).${backupPath?` Backup created: ${backupPath}`:''}`,'good');
+      if(hasEmpty)log('Warning: empty Header.Template patterns still found after cleanup.','warn');
+    }else log('No empty style overrides found in Central.','warn');
   }else{
-    const res=cleanupNoOpStyles(state.current.localObj);state.current.localObj=res.obj;state.current.localText=serializeVp(res.obj);if(res.cleaned)await writeLocalFile(state.current.localHandle,state.current.localText);log(res.cleaned?`Cleaned ${res.cleaned} empty style override(s) from Local.`:'No empty style overrides found in Local.',res.cleaned?'good':'warn');
+    const res=cleanupNoOpStyles(state.current.localObj);state.current.localObj=res.obj;state.current.localText=serializeVp(res.obj);
+    if(res.cleaned){
+      const backupPath=await writeLocalFile(state.current.localHandle,state.current.localText);
+      const saved=await readFileHandle(state.current.localHandle);
+      const hasEmpty=/Header\s*:\s*{\s*Template\s*:\s*"(\s*)"\s*}/i.test(saved);
+      log(`Cleaned ${res.removedTemplates} empty style override(s) from Local. Removed ${res.removedStyleBlocks} empty Style block(s).${backupPath?` Backup created: ${backupPath}`:''}`,'good');
+      if(hasEmpty)log('Warning: empty Header.Template patterns still found after cleanup.','warn');
+    }else log('No empty style overrides found in Local.','warn');
   }
   await refreshActiveTabFromLoadedPair(true);
 }
