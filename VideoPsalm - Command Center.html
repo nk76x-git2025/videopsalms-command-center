@@ -644,7 +644,16 @@ async function actionSong(diffIndex,action){const d=state.diffs[Number(diffIndex
 if(!msg)return alert('That action is not available for this difference.');if(action.includes('central'))await writeCentralWithLog(stamp(msg));if(action.includes('local'))await writeLocal();log(msg,'good');await compareCurrent();if(state.batch?.length)await compareAll()}
 async function actionMeta(action){if(!state.current)return alert('Load a pair first.');const cm=topMeta(state.current.centralObj),lm=topMeta(state.current.localObj);for(const k of new Set([...Object.keys(cm),...Object.keys(lm)])){if(normalize(cm[k])!==normalize(lm[k])){if(action==='push-local-central')state.current.centralObj[k]=clone(lm[k]);else if(action==='restore-central-local')state.current.localObj[k]=clone(cm[k]);}}
 if(action==='push-local-central')await writeCentralWithLog(stamp(`Accepted Local songbook metadata into Central for ${state.current.pairName}.`));else await writeLocal();log(action==='push-local-central'?'Pushed Local metadata to Central.':'Restored Local metadata from Central.','good');await compareCurrent();if(state.batch?.length)await compareAll()}
-function sectionLabel(v,idx){const map={1:'Chorus',2:'Pre-Chorus',3:'Bridge',4:'Tag',5:'Intro',6:'Outro',7:'Slide',8:'Instrumental',9:'Other'};const base=(v&&v.Tag!=null)?(map[v.Tag]||('Tag '+v.Tag)):'Verse';const id=v&&v.ID!=null&&String(v.ID)!=='0'?` ${v.ID}`:'';return base+id+` (#${idx+1})`}
+function sectionLabel(v,idx){
+  const map={1:'Chorus',2:'Pre-Chorus',3:'Bridge',4:'Tag',5:'Intro',6:'Outro',7:'Slide',8:'Instrumental',9:'Other'};
+  const rawTag=v?.Tag;
+  const hasTag=rawTag!=null&&String(rawTag).trim()!=='';
+  const tagNum=hasTag?Number(rawTag):null;
+  const base=(tagNum!=null&&Number.isFinite(tagNum))?(map[tagNum]||`Tag ${tagNum}`):'Verse';
+  const rawId=v?.ID;
+  const hasId=rawId!=null&&String(rawId).trim()!==''&&String(rawId).trim()!=='0';
+  return hasId?`${base} ${String(rawId).trim()}`:base;
+}
 function flattenKeys(obj,prefix=''){const out=[];function walk(n,path){if(!n||typeof n!=='object')return;if(Array.isArray(n)){n.forEach((v,i)=>walk(v,`${path}[${i}]`));return}for(const[k,v]of Object.entries(n)){const p=path?`${path}.${k}`:k;if(v&&typeof v==='object')walk(v,p);else out.push(`${p}: ${String(v)}`)}}walk(obj,prefix);return out}
 function collectAuditRows(obj,bookName,side){const rows=[];for(const {song,path} of collectSongs(obj)){const title=getTitle(song),sid=getSongId(song);if(song.Style){rows.push({book:bookName,side,title,sid,level:'Song level',where:'Whole song',style:song.Style,media:collectVisualRefs(song.Style).map(x=>x.value)})}const verses=Array.isArray(song.Verses)?song.Verses:[];verses.forEach((v,i)=>{if(v&&v.Style)rows.push({book:bookName,side,title,sid,level:'Verse level',where:sectionLabel(v,i),style:v.Style,media:collectVisualRefs(v.Style).map(x=>x.value)})})}return rows}
 
