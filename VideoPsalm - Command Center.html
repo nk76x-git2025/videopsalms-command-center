@@ -284,7 +284,7 @@ table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}td
           <button id="scanBtn">Scan only</button>
         </div>
         <div class="path" id="rootPath">Root not selected</div>
-        <div class="path">Best workflow: choose <span class="kbd">G:\Shared drives\Tech Desk\VideoPslam</span> once. The tool will look for SongBooks, Central, Images, and Videos\Thumbs.</div>
+        <div class="path">Best workflow: choose <button id="copyRootPathBtn" class="linklike" type="button">G:\Shared drives\Tech Desk\VideoPslam</button> once. The tool will look for SongBooks, Central, Images, and Videos\Thumbs.<div id="copyRootPathStatus" class="muted" style="margin-top:6px"></div></div>
       </div>
       <div class="heroCard">
         <div class="heroTitle">Current loaded pair</div>
@@ -297,14 +297,12 @@ table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}td
   <div class="layout">
     <aside class="sidePanel card">
       <div class="sectionCard">
-        <h3>Folders</h3>
+        <h3>Folder status</h3>
         <div class="notice" id="supportNotice">Checking browser support...</div>
-        <div class="row" style="margin-top:10px"><button id="pickSongBooks">SongBooks</button><button id="pickCentral">Central</button></div>
-        <div class="path" id="songBooksPath">SongBooks not selected</div>
-        <div class="path" id="centralPath">Central not selected</div>
-        <div class="row" style="margin-top:10px"><button id="pickImages">Images</button><button id="pickThumbs">Video thumbs</button></div>
-        <div class="path" id="imagesPath">Images not selected</div>
-        <div class="path" id="thumbsPath">Thumbs not selected</div>
+        <div class="path" id="songBooksPath">SongBooks not detected yet</div>
+        <div class="path" id="centralPath">Central not detected yet</div>
+        <div class="path" id="imagesPath">Images not detected yet</div>
+        <div class="path" id="thumbsPath">Videos/Thumbs not detected yet</div>
       </div>
 
       <div class="sectionCard">
@@ -363,7 +361,7 @@ function idbOpen(){return new Promise((resolve,reject)=>{const r=indexedDB.open(
 async function saveHandle(key,handle){try{const db=await idbOpen();await new Promise((resolve,reject)=>{const tx=db.transaction('handles','readwrite');tx.objectStore('handles').put(handle,key);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch(e){log('Could not remember '+key+': '+e.message,'warn')}}
 async function loadHandle(key){try{const db=await idbOpen();const h=await new Promise((resolve,reject)=>{const tx=db.transaction('handles','readonly');const r=tx.objectStore('handles').get(key);r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});db.close();return h||null}catch(e){return null}}
 async function ensurePerm(handle){if(!handle)return false;if((await handle.queryPermission({mode:'readwrite'}))==='granted')return true;if((await handle.requestPermission({mode:'readwrite'}))==='granted')return true;return false}
-async function pickDir(label,key=null){if(!window.showDirectoryPicker){alert('Use Chrome or Edge for folder editing.');return null}const h=await window.showDirectoryPicker({mode:'readwrite'});if(key)await saveHandle(key,h);log(`Selected ${label}: ${h.name}`);return h}
+async function pickDir(label,key=null){if(!window.showDirectoryPicker){log('Use Chrome or Edge for folder editing.','bad');return null}const h=await window.showDirectoryPicker({mode:'readwrite'});if(key)await saveHandle(key,h);log(`Selected ${label}: ${h.name}`);return h}
 async function readFileHandle(h){return await (await h.getFile()).text()}
 async function writeFileHandle(h,t){const w=await h.createWritable();await w.write(t);await w.close()}
 function backupStamp(){return new Date().toISOString().replace(/[:.]/g,'-')}
@@ -548,7 +546,7 @@ const vmC=visualMap(c.song),vmL=visualMap(l.song);for(const p of new Set([...vmC
 if(changes.length)diffs.push({pairName,type:'song',id,title:getTitle(c.song),central:c,local:l,changes})}
 diffs.modeStatus=summarizeModeOnlyChanges(modeCounts);diffs.modeCounts=modeCounts;diffs.modeMismatch=modeMismatch;diffs.modeMismatchMessage=modeMismatch?modeMismatchMessage:'';return diffs}
 function mediaName(v){return String(v??'').split(/[\\/]/).pop().trim().toLowerCase()}async function previewHtml(v,opts={}){const n=mediaName(v);const wrapClass=opts?.wrapClass?` ${opts.wrapClass}`:'';if(!n)return`<div class="preview${wrapClass}"><div class="empty">No media</div></div>`;let h=state.imageIndex.get(n)||state.thumbIndex.get(n);if(!h&&/\.(mp4|mov|avi|wmv|mkv)$/i.test(n)){const stem=n.replace(/\.[^.]+$/,'');h=state.thumbIndex.get(stem+'.jpg')||state.thumbIndex.get(stem+'.png')||state.imageIndex.get(stem+'.jpg')||state.imageIndex.get(stem+'.png')}if(!h)return`<div class="preview${wrapClass}"><div class="missing">Missing: ${esc(n)}</div></div>`;try{const url=URL.createObjectURL(await h.getFile());return`<div class="preview${wrapClass}"><img src="${url}" alt=""></div>`}catch(e){return`<div class="preview${wrapClass}"><div class="missing">Cannot preview ${esc(n)}</div></div>`}}
-async function scanFolders(){if(!state.songBooksDir)return alert('Pick SongBooks folder first.');await autoFindCentral();if(!state.centralDir)return alert('Pick Central folder or create SongBooks\\Central.');state.locals=await listFiles(state.songBooksDir,n=>/\.json$/i.test(n));state.centrals=await listFiles(state.centralDir,n=>/\.central$/i.test(n));const lm=new Map(state.locals.map(f=>[baseName(f.name).toLowerCase(),f]));const cm=new Map(state.centrals.map(f=>[baseName(f.name).toLowerCase(),f]));state.pairs=[];for(const k of new Set([...lm.keys(),...cm.keys()])){const local=lm.get(k)||null,central=cm.get(k)||null;const fileName=local?.name||central?.name||k;let title='';try{const src=local||central;if(src){const obj=parseVp(await readFileHandle(src.handle));title=getSongbookTitle(obj,fileName)}}catch(e){title=''}if(!title)title=String(fileName).trim();state.pairs.push({key:k,name:title,fileName,local,central});}state.pairs.sort((a,b)=>a.name.localeCompare(b.name)||a.fileName.localeCompare(b.fileName));renderPairSelect();renderFiles();log(`Scanned ${state.locals.length} Local and ${state.centrals.length} Central files. Found ${state.pairs.length} possible pairs.`,'good');if(state.imagesDir)await scanImages();if(state.thumbsDir)await scanThumbs();return state.pairs}
+async function scanFolders(){if(!state.songBooksDir){log('Pick VideoPsalm root first so SongBooks can be found.','bad');return [];}await autoFindCentral();if(!state.centralDir){log('Could not find SongBooks\\Central under the selected root.','bad');return [];}state.locals=await listFiles(state.songBooksDir,n=>/\.json$/i.test(n));state.centrals=await listFiles(state.centralDir,n=>/\.central$/i.test(n));const lm=new Map(state.locals.map(f=>[baseName(f.name).toLowerCase(),f]));const cm=new Map(state.centrals.map(f=>[baseName(f.name).toLowerCase(),f]));state.pairs=[];for(const k of new Set([...lm.keys(),...cm.keys()])){const local=lm.get(k)||null,central=cm.get(k)||null;const fileName=local?.name||central?.name||k;let title='';try{const src=local||central;if(src){const obj=parseVp(await readFileHandle(src.handle));title=getSongbookTitle(obj,fileName)}}catch(e){title=''}if(!title)title=String(fileName).trim();state.pairs.push({key:k,name:title,fileName,local,central});}state.pairs.sort((a,b)=>a.name.localeCompare(b.name)||a.fileName.localeCompare(b.fileName));renderPairSelect();renderFiles();log(`Scanned ${state.locals.length} Local and ${state.centrals.length} Central files. Found ${state.pairs.length} possible pairs.`,'good');if(state.imagesDir)await scanImages();if(state.thumbsDir)await scanThumbs();return state.pairs}
 function renderPairSelect(){const s=$('pairSelect');s.innerHTML='';for(const p of state.pairs){const o=document.createElement('option');o.value=p.key;o.textContent=`${p.name} ${p.local?'✓ Local':'✗ Local'} ${p.central?'✓ Central':'✗ Central'}`;s.appendChild(o)}}
 function renderFiles(){let html='<table><tr><th>Songbook</th><th>Local</th><th>Central</th><th>Status</th></tr>';for(const p of state.pairs){const status=p.local&&p.central?'Ready':p.local?'Missing Central':'Missing Local';html+=`<tr><td>${esc(p.name)}<div class="muted">File: ${esc(p.fileName||p.local?.name||p.central?.name||'')}</div></td><td>${p.local?esc(p.local.name):'—'}</td><td>${p.central?esc(p.central.name):'—'}</td><td>${status}</td></tr>`}html+='</table>';$('fileTable').innerHTML=html}
 async function loadPair(pair){if(!pair||!pair.local||!pair.central)throw new Error('This pair needs both Local .json and Central .central files.');const [lt,ct]=await Promise.all([readFileHandle(pair.local.handle),readFileHandle(pair.central.handle)]);const localObj=parseVp(lt),centralObj=parseVp(ct);const songbookTitle=getSongbookTitle(localObj,pair.local.name)||pair.name;state.current={pairName:songbookTitle,pairFileName:pair.fileName||pair.local.name||pair.central.name,localName:pair.local.name,centralName:pair.central.name,localHandle:pair.local.handle,centralHandle:pair.central.handle,localText:lt,centralText:ct,localObj,centralObj};invalidateAutoTabCache();$('loadedStatus').textContent=`Loaded: ${songbookTitle}`;$('loadedStatus').className='pill good';await setSongbookViewerFromObj(state.current.localObj,songbookTitle,state.current.localName||pair.fileName||pair.name);log(`Loaded ${songbookTitle}`,'good');await renderCurrentThemeSettings()}
@@ -1454,13 +1452,28 @@ async function openSongbookViewer(){
 
 async function switchTab(name){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));['dashboard','compare','changelog','audit','purge','unverified','themes','files','songbook','rules'].forEach(n=>$('tab-'+n).classList.toggle('hidden',n!==name));await onActiveTabChanged(name);}
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchTab(t.dataset.tab));
-$('pickRoot').onclick=async()=>{state.rootDir=await pickDir('VideoPsalm root','rootDir');await applyRootFolders()};$('pickSongBooks').onclick=async()=>{state.songBooksDir=await pickDir('SongBooks','songBooksDir');setPath('songBooksPath',state.songBooksDir);await autoFindCentral()};$('pickCentral').onclick=async()=>{state.centralDir=await pickDir('Central','centralDir');setPath('centralPath',state.centralDir)};$('pickImages').onclick=async()=>{state.imagesDir=await pickDir('Images','imagesDir');setPath('imagesPath',state.imagesDir);await scanImages()};$('pickThumbs').onclick=async()=>{state.thumbsDir=await pickDir('Videos/Thumbs','thumbsDir');setPath('thumbsPath',state.thumbsDir);await scanThumbs()};
+$('pickRoot').onclick=async()=>{state.rootDir=await pickDir('VideoPsalm root','rootDir');await applyRootFolders()};
 $('scanBtn').onclick=scanFolders;$('scanCompareAllBtn').onclick=compareAll;$('loadPairBtn').textContent='Reload selected pair';$('loadPairBtn').onclick=async()=>{await loadSelectedPair();await onPairLoaded();};$('pairSelect').onchange=async()=>{try{await loadSelectedPair();await onPairLoaded();}catch(e){alert(e.message);log(e.message,'bad')}};$('compareBtn').onclick=async()=>{try{await loadSelectedPair();await onPairLoaded();switchTab('compare')}catch(e){alert(e.message);log(e.message,'bad')}};$('makeCentralBtn').onclick=createMissingCentral;
 $('applyLanguageLoadedBtn').onclick=async()=>{if(!state.current)return alert('Load a pair first.');if(!confirm(`Apply ${$('languageMode').value} mode to loaded Local using Local data only?`))return;const r=transformLanguage(state.current.localObj,$('languageMode').value);state.current.localObj=r.obj;await saveCurrent('local');log(`Applied language mode to loaded Local. Changed ${r.changed} verse fields and cleaned ${r.cleaned||0} empty style override(s).`,'good');await compareCurrent()};$('applyLanguageAllBtn').onclick=applyLanguageAll;
 $('cleanNoOpLocalBtn').onclick=()=>cleanNoOpStylesLoaded('local');
 $('cleanNoOpCentralBtn').onclick=()=>cleanNoOpStylesLoaded('central');
 $('scanHeaderLyricsBtn').onclick=scanHeaderLyricsCandidates;
 
+
+const ROOT_PATH_EXAMPLE='G:\\Shared drives\\Tech Desk\\VideoPslam';
+async function copyRootPathExample(){
+  const el=$('copyRootPathStatus');
+  try{
+    if(!navigator.clipboard||!navigator.clipboard.writeText)throw new Error('Clipboard API unavailable');
+    await navigator.clipboard.writeText(ROOT_PATH_EXAMPLE);
+    el.textContent='Copied path to clipboard.';
+    el.className='muted good';
+  }catch(e){
+    el.textContent='Could not copy path automatically. Please copy it manually.';
+    el.className='muted bad';
+  }
+}
+$('copyRootPathBtn').onclick=copyRootPathExample;
 $('openSongbookViewerBtn').onclick=openSongbookViewer;$('songbookSearch').oninput=renderSongbookList;$('songbookSort').onchange=e=>{state.songbookViewer.sort=e.target.value;renderSongbookList();};$('changeLogLoadedBtn').textContent='Refresh loaded pair';$('changeLogLoadedBtn').onclick=showLoadedChangeLog;$('changeLogAllBtn').onclick=showAllChangeLogs;$('changeLogSearch').oninput=()=>renderChangeLogRows();$('changeLogSource').onchange=async()=>{if(state.current){await showLoadedChangeLog(false);await refreshActiveTabFromLoadedPair(true);}else if(state.batch?.length)await showAllChangeLogs()};$('auditLoadedBtn').textContent='Refresh loaded pair';$('auditLoadedBtn').onclick=auditLoaded;$('auditAllBtn').onclick=auditAll;$('auditSearch').oninput=()=>renderAuditRows();$('auditLevel').onchange=()=>renderAuditRows();$('scanUnverifiedLoadedBtn').textContent='Refresh loaded Central';$('scanUnverifiedLoadedBtn').onclick=scanUnverifiedLoaded;$('scanUnverifiedAllBtn').onclick=scanUnverifiedAll;$('unverifiedSearch').oninput=()=>renderUnverifiedRows();$('scanThemesBtn').onclick=async()=>{if(!state.imagesDir){log('Pick Images folder first.','bad');return;}await scanImages()};$('diffSearch').oninput=renderDiffs;$('diffFilter').onchange=renderDiffs;$('dashSearch').oninput=renderDashboard;$('showUnchanged').onchange=renderDashboard;
-(async function init(){if(window.showDirectoryPicker){$('supportNotice').className='notice ok';$('supportNotice').textContent='Direct folder editing supported. Use Chrome or Edge. Note: browsers cannot be forced to open a specific G:\ path, but this tool remembers folder permissions after you pick the VideoPsalm root once.';await restoreSavedFolders()}else{$('supportNotice').className='notice danger';$('supportNotice').textContent='This browser cannot edit folders directly. Use Chrome or Edge.'}log('Ready. Pick VideoPsalm root or SongBooks, then Scan + compare all.')})();
+(async function init(){if(window.showDirectoryPicker){$('supportNotice').className='notice ok';$('supportNotice').textContent='Direct folder editing supported. Use Chrome or Edge. Note: browsers cannot be forced to open a specific G:\ path, but this tool remembers folder permissions after you pick the VideoPsalm root once.';await restoreSavedFolders()}else{$('supportNotice').className='notice danger';$('supportNotice').textContent='This browser cannot edit folders directly. Use Chrome or Edge.'}log('Ready. Pick VideoPsalm root, then Scan + compare all.')})();
 </script></body></html>
