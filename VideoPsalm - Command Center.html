@@ -102,6 +102,10 @@ button.small{font-size:12px;padding:7px 10px;border-radius:12px}.wide{width:100%
 .themeGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}.thumb{max-width:100%;height:124px;object-fit:cover;border-radius:16px;border:1px solid var(--line);background:rgba(0,0,0,.25)}
 table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}td,th{text-align:left;padding:10px;vertical-align:top}th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.1em}tbody tr{background:rgba(255,255,255,.045)}tbody td:first-child{border-radius:14px 0 0 14px}tbody td:last-child{border-radius:0 14px 14px 0}.empty{padding:34px;text-align:center;color:var(--muted)}a{color:var(--accent)}
 .box.mono,.diffBox,.changeLogText{white-space:pre-wrap;overflow:auto;overflow-wrap:anywhere;line-height:1.5}.box.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.diffDel{background:rgba(255,95,109,.16);color:#ffd5d9;text-decoration:line-through;text-decoration-thickness:1.5px}.diffIns{background:rgba(69,212,131,.16);color:#ccffdf}.diffSame{color:inherit}.previewRow{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}.changeLogMeta{font-size:12px;color:var(--muted);margin-bottom:8px}.changeLogText{max-height:260px}
+.toast{position:fixed;right:18px;bottom:18px;z-index:80;padding:10px 14px;border-radius:12px;border:1px solid var(--line2);background:rgba(11,17,38,.96);color:#dce9f8;font-size:13px;box-shadow:0 10px 24px rgba(0,0,0,.32);opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .18s ease,transform .18s ease}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.good{border-color:rgba(69,212,131,.35);color:#ccffdf}
+.toast.bad{border-color:rgba(255,95,109,.35);color:#ffd7db}
 @media(max-width:1100px){.layout,.heroGrid{grid-template-columns:1fr}.sidePanel{position:relative;top:auto;max-height:none}.search{min-width:180px}.twoCols{grid-template-columns:1fr}.previewRow{grid-template-columns:1fr}}
 
 /* v8.1 audit layout fixes */
@@ -272,7 +276,8 @@ table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}td
     <span class="pill good" id="sameCount">0 same</span>
     <span class="pill warn" id="problemCount">0 problems</span>
   </div>
-</header>
+ </header>
+<div id="toast" class="toast" aria-live="polite"></div>
 <main>
   <section class="appHero">
     <div class="heroGrid">
@@ -284,7 +289,7 @@ table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}td
           <button id="scanBtn">Scan only</button>
         </div>
         <div class="path" id="rootPath">Root not selected</div>
-        <div class="path">Best workflow: choose <button id="copyRootPathBtn" class="linklike" type="button">G:\Shared drives\Tech Desk\VideoPslam</button> once. The tool will look for SongBooks, Central, Images, and Videos\Thumbs.<div id="copyRootPathStatus" class="muted" style="margin-top:6px"></div></div>
+        <div class="path">Best workflow: choose <button id="copyRootPathBtn" class="linklike" type="button">G:\Shared drives\Tech Desk\VideoPslam</button> once. The tool will look for SongBooks, Central, Images, and Videos\Thumbs.</div>
       </div>
       <div class="heroCard">
         <div class="heroTitle">Current loaded pair</div>
@@ -296,15 +301,6 @@ table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}td
 
   <div class="layout">
     <aside class="sidePanel card">
-      <div class="sectionCard">
-        <h3>Folder status</h3>
-        <div class="notice" id="supportNotice">Checking browser support...</div>
-        <div class="path" id="songBooksPath">SongBooks not detected yet</div>
-        <div class="path" id="centralPath">Central not detected yet</div>
-        <div class="path" id="imagesPath">Images not detected yet</div>
-        <div class="path" id="thumbsPath">Videos/Thumbs not detected yet</div>
-      </div>
-
       <div class="sectionCard">
         <h3>Single pair</h3>
         <select id="pairSelect" class="wide"></select>
@@ -352,7 +348,9 @@ table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}td
 const state={rootDir:null,songBooksDir:null,centralDir:null,imagesDir:null,thumbsDir:null,rootStyleFile:null,songBookStyleFile:null,locals:[],centrals:[],pairs:[],batch:[],current:null,themePair:null,diffs:[],imageIndex:new Map(),thumbIndex:new Map(),themes:new Map(),auditRows:[],unverifiedRows:[],changeLogRows:[],headerLyricsRows:[],headerLyricsSelectedKeys:new Set(),headerLyricsMessage:'',headerLyricsMessageType:'',headerLyricsConfirming:false,headerLyricsOwnerKey:'',headerLyricsPanelOpen:false,purgeStatusMessage:'',purgeStatusType:'',purgeConfirming:'',purgeOwnerKey:'',activeTab:'dashboard',autoTabCache:{compare:'',audit:'',unverified:'',changelog:'',songbook:''},songbookViewer:{handle:null,name:'',fileName:'',songs:[],selected:null,sort:'number',defaultImage:'00_Spring_VideoPsalms-Blank.png'}};
 const $=id=>document.getElementById(id);
 function log(msg,type=''){const d=document.createElement('div');d.textContent=`[${new Date().toLocaleTimeString()}] ${msg}`;if(type==='good')d.style.color='var(--good)';if(type==='bad')d.style.color='var(--bad)';if(type==='warn')d.style.color='var(--warn)';$('log').appendChild(d);$('log').scrollTop=$('log').scrollHeight}
-function setPath(id,h,msg='Not selected'){$(id).textContent=h?h.name:msg}
+function setPath(id,h,msg='Not selected'){const el=$(id);if(!el)return;el.textContent=h?h.name:msg}
+let toastTimer=null;
+function showToast(message,type='good'){const el=$('toast');if(!el)return;el.textContent=message;el.className=`toast ${type} show`;if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3000)}
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function baseName(n){return n.replace(/\.central$/i,'').replace(/\.json$/i,'')}
 function centralNameFromLocal(n){return n.replace(/\.json$/i,'.central')}
@@ -1462,18 +1460,15 @@ $('scanHeaderLyricsBtn').onclick=scanHeaderLyricsCandidates;
 
 const ROOT_PATH_EXAMPLE='G:\\Shared drives\\Tech Desk\\VideoPslam';
 async function copyRootPathExample(){
-  const el=$('copyRootPathStatus');
   try{
     if(!navigator.clipboard||!navigator.clipboard.writeText)throw new Error('Clipboard API unavailable');
     await navigator.clipboard.writeText(ROOT_PATH_EXAMPLE);
-    el.textContent='Copied path to clipboard.';
-    el.className='muted good';
+    showToast('Copied path to clipboard.','good');
   }catch(e){
-    el.textContent='Could not copy path automatically. Please copy it manually.';
-    el.className='muted bad';
+    showToast('Could not copy path automatically. Please copy it manually.','bad');
   }
 }
 $('copyRootPathBtn').onclick=copyRootPathExample;
 $('openSongbookViewerBtn').onclick=openSongbookViewer;$('songbookSearch').oninput=renderSongbookList;$('songbookSort').onchange=e=>{state.songbookViewer.sort=e.target.value;renderSongbookList();};$('changeLogLoadedBtn').textContent='Refresh loaded pair';$('changeLogLoadedBtn').onclick=showLoadedChangeLog;$('changeLogAllBtn').onclick=showAllChangeLogs;$('changeLogSearch').oninput=()=>renderChangeLogRows();$('changeLogSource').onchange=async()=>{if(state.current){await showLoadedChangeLog(false);await refreshActiveTabFromLoadedPair(true);}else if(state.batch?.length)await showAllChangeLogs()};$('auditLoadedBtn').textContent='Refresh loaded pair';$('auditLoadedBtn').onclick=auditLoaded;$('auditAllBtn').onclick=auditAll;$('auditSearch').oninput=()=>renderAuditRows();$('auditLevel').onchange=()=>renderAuditRows();$('scanUnverifiedLoadedBtn').textContent='Refresh loaded Central';$('scanUnverifiedLoadedBtn').onclick=scanUnverifiedLoaded;$('scanUnverifiedAllBtn').onclick=scanUnverifiedAll;$('unverifiedSearch').oninput=()=>renderUnverifiedRows();$('scanThemesBtn').onclick=async()=>{if(!state.imagesDir){log('Pick Images folder first.','bad');return;}await scanImages()};$('diffSearch').oninput=renderDiffs;$('diffFilter').onchange=renderDiffs;$('dashSearch').oninput=renderDashboard;$('showUnchanged').onchange=renderDashboard;
-(async function init(){if(window.showDirectoryPicker){$('supportNotice').className='notice ok';$('supportNotice').textContent='Direct folder editing supported. Use Chrome or Edge. Note: browsers cannot be forced to open a specific G:\ path, but this tool remembers folder permissions after you pick the VideoPsalm root once.';await restoreSavedFolders()}else{$('supportNotice').className='notice danger';$('supportNotice').textContent='This browser cannot edit folders directly. Use Chrome or Edge.'}log('Ready. Pick VideoPsalm root, then Scan + compare all.')})();
+(async function init(){if(window.showDirectoryPicker){await restoreSavedFolders()}else{log('This browser cannot edit folders directly. Use Chrome or Edge.','bad')}log('Ready. Pick VideoPsalm root, then Scan + compare all.')})();
 </script></body></html>
