@@ -319,7 +319,7 @@ table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}td
 </main>
 <script>
 'use strict';
-const state={rootDir:null,songBooksDir:null,centralDir:null,imagesDir:null,thumbsDir:null,rootStyleFile:null,songBookStyleFile:null,locals:[],centrals:[],pairs:[],batch:[],current:null,diffs:[],imageIndex:new Map(),thumbIndex:new Map(),themes:new Map(),auditRows:[],unverifiedRows:[],changeLogRows:[],songbookViewer:{handle:null,name:'',songs:[],selected:null,sort:'number'}};
+const state={rootDir:null,songBooksDir:null,centralDir:null,imagesDir:null,thumbsDir:null,rootStyleFile:null,songBookStyleFile:null,locals:[],centrals:[],pairs:[],batch:[],current:null,diffs:[],imageIndex:new Map(),thumbIndex:new Map(),themes:new Map(),auditRows:[],unverifiedRows:[],changeLogRows:[],songbookViewer:{handle:null,name:'',songs:[],selected:null,sort:'number',defaultImage:'00_Spring_VideoPsalms-Blank.png'}};
 const $=id=>document.getElementById(id);
 function log(msg,type=''){const d=document.createElement('div');d.textContent=`[${new Date().toLocaleTimeString()}] ${msg}`;if(type==='good')d.style.color='var(--good)';if(type==='bad')d.style.color='var(--bad)';if(type==='warn')d.style.color='var(--warn)';$('log').appendChild(d);$('log').scrollTop=$('log').scrollHeight}
 function setPath(id,h,msg='Not selected'){$(id).textContent=h?h.name:msg}
@@ -491,7 +491,7 @@ function mediaName(v){return String(v??'').split(/[\\/]/).pop().trim().toLowerCa
 async function scanFolders(){if(!state.songBooksDir)return alert('Pick SongBooks folder first.');await autoFindCentral();if(!state.centralDir)return alert('Pick Central folder or create SongBooks\\Central.');state.locals=await listFiles(state.songBooksDir,n=>/\.json$/i.test(n));state.centrals=await listFiles(state.centralDir,n=>/\.central$/i.test(n));const lm=new Map(state.locals.map(f=>[baseName(f.name).toLowerCase(),f]));const cm=new Map(state.centrals.map(f=>[baseName(f.name).toLowerCase(),f]));state.pairs=[];for(const k of new Set([...lm.keys(),...cm.keys()]))state.pairs.push({key:k,name:(lm.get(k)?.name||cm.get(k)?.name||k).replace(/\.json$/i,'').replace(/\.central$/i,''),local:lm.get(k)||null,central:cm.get(k)||null});state.pairs.sort((a,b)=>a.name.localeCompare(b.name));renderPairSelect();renderFiles();log(`Scanned ${state.locals.length} Local and ${state.centrals.length} Central files. Found ${state.pairs.length} possible pairs.`,'good');if(state.imagesDir)await scanImages();if(state.thumbsDir)await scanThumbs();return state.pairs}
 function renderPairSelect(){const s=$('pairSelect');s.innerHTML='';for(const p of state.pairs){const o=document.createElement('option');o.value=p.key;o.textContent=`${p.name} ${p.local?'✓ Local':'✗ Local'} ${p.central?'✓ Central':'✗ Central'}`;s.appendChild(o)}}
 function renderFiles(){let html='<table><tr><th>Songbook</th><th>Local</th><th>Central</th><th>Status</th></tr>';for(const p of state.pairs){const status=p.local&&p.central?'Ready':p.local?'Missing Central':'Missing Local';html+=`<tr><td>${esc(p.name)}</td><td>${p.local?esc(p.local.name):'—'}</td><td>${p.central?esc(p.central.name):'—'}</td><td>${status}</td></tr>`}html+='</table>';$('fileTable').innerHTML=html}
-async function loadPair(pair){if(!pair||!pair.local||!pair.central)throw new Error('This pair needs both Local .json and Central .central files.');const [lt,ct]=await Promise.all([readFileHandle(pair.local.handle),readFileHandle(pair.central.handle)]);state.current={pairName:pair.name,localName:pair.local.name,centralName:pair.central.name,localHandle:pair.local.handle,centralHandle:pair.central.handle,localText:lt,centralText:ct,localObj:parseVp(lt),centralObj:parseVp(ct)};$('loadedStatus').textContent=`Loaded: ${pair.name}`;$('loadedStatus').className='pill good';setSongbookViewerFromObj(state.current.localObj,state.current.localName||pair.name);log(`Loaded ${pair.name}`,'good');await renderCurrentThemeSettings()}
+async function loadPair(pair){if(!pair||!pair.local||!pair.central)throw new Error('This pair needs both Local .json and Central .central files.');const [lt,ct]=await Promise.all([readFileHandle(pair.local.handle),readFileHandle(pair.central.handle)]);state.current={pairName:pair.name,localName:pair.local.name,centralName:pair.central.name,localHandle:pair.local.handle,centralHandle:pair.central.handle,localText:lt,centralText:ct,localObj:parseVp(lt),centralObj:parseVp(ct)};$('loadedStatus').textContent=`Loaded: ${pair.name}`;$('loadedStatus').className='pill good';await setSongbookViewerFromObj(state.current.localObj,state.current.localName||pair.name);log(`Loaded ${pair.name}`,'good');await renderCurrentThemeSettings()}
 async function loadSelectedPair(){const p=state.pairs.find(x=>x.key===$('pairSelect').value);await loadPair(p);return p}
 async function compareCurrent(){if(!state.current)throw new Error('No songbook pair loaded. Pick a pair or use Scan + compare all.');state.diffs=compareObjects(state.current.centralObj,state.current.localObj,state.current.pairName);$('diffCount').textContent=`${state.diffs.length} changed groups`;const v=state.diffs.reduce((n,d)=>n+d.changes.filter(c=>c.category==='visual').length,0);$('visualCount').textContent=`${v} visual changes`;const modeText=state.diffs.modeStatus?` Local appears to be in ${state.diffs.modeStatus} mode. This is not counted as a change.`:'';$('compareSummary').className=state.diffs.length?'notice':'notice ok';$('compareSummary').textContent=state.diffs.length?`Found ${state.diffs.length} changed groups in ${state.current.pairName}.${modeText}`:`No real edits found.${modeText||' Central and Local match.'}`;await renderDiffs();return state.diffs}
 function countBilingualVerseFields(root){let total=0;for(const {song} of collectSongs(root)){for(const v of (song.Verses||[])){if(v&&typeof v.Text==='string'&&hasColorBlocks(v.Text))total++}}return total}
@@ -753,7 +753,7 @@ async function renderDiffs(){const list=$('diffList');list.innerHTML='';const q=
 }
 let html=`<div class="diffHead"><div><div class="diffTitle">${esc(d.title)}</div><div class="muted">${esc(d.pairName||state.current?.pairName||'')} • ${esc(d.id)} ${hasSongStatus(d.central?.song)?'• Translation Unverified':''}</div></div><span class="pill">${changes.length} change(s)</span></div>${actions}`;for(const c of changes){html+=`<div class="change"><b>${esc(c.kind)}</b> <span class="pill ${c.category==='visual'?'warn':c.category==='lyrics'?'bad':''}">${esc(c.category)}</span>${renderChangeBoxes(c,di)}`;if(c.visual)html+=`<div class="previewRow"><div>${await previewHtml(c.local)}</div><div>${await previewHtml(c.central)}</div></div>`;html+='</div>'}html+=`<div class="diffItem hidden" id="songContext-${di}" style="margin-top:10px"></div>`;div.innerHTML=html;list.appendChild(div)}if(!shown)list.innerHTML='<div class="notice ok">No differences match this filter.</div>';document.querySelectorAll('[data-song-action]').forEach(b=>b.onclick=()=>actionSong(b.dataset.diff,b.dataset.songAction));document.querySelectorAll('[data-meta-action]').forEach(b=>b.onclick=()=>actionMeta(b.dataset.metaAction));document.querySelectorAll('[data-open-context]').forEach(b=>b.onclick=()=>{const d=state.diffs[Number(b.dataset.openContext)];if(!d)return;const panel=$(`songContext-${b.dataset.openContext}`);if(panel&&!panel.classList.contains('hidden')){panel.classList.add('hidden');panel.classList.remove('contextPanel');panel.innerHTML='';return}document.querySelectorAll('[id^=\"songContext-\"]').forEach(p=>{p.classList.add('hidden');p.classList.remove('contextPanel');p.innerHTML='';});openSongContextPanel(d,panel);panel?.scrollIntoView({behavior:'smooth',block:'nearest'})})}
 async function createMissingCentral(){const p=state.pairs.find(x=>x.key===$('pairSelect').value);if(!p||!p.local)return alert('Select a Local songbook first.');if(!state.centralDir)return alert('Pick Central folder first.');if(p.central&&!confirm('Central already exists. Overwrite from Local?'))return;const h=await getOrCreateFile(state.centralDir,centralNameFromLocal(p.local.name));await writeCentralFile(h,await readFileHandle(p.local.handle));log(`Created Central: ${centralNameFromLocal(p.local.name)}`,'good');await scanFolders()}
-async function saveCurrent(which){if(!state.current)return;const stamp=`${new Date().toISOString().slice(0,19).replace('T',' ')} - Updated ${which} with Videopsalms Command Center.`;if(which==='local'){const text=serializeVp(state.current.localObj);state.current.localText=text;await writeLocalFile(state.current.localHandle,text);setSongbookViewerFromObj(state.current.localObj,state.current.localName||state.current.pairName)}else{state.current.centralObj=addChangelog(state.current.centralObj,stamp);const text=serializeVp(state.current.centralObj);state.current.centralText=text;await writeCentralFile(state.current.centralHandle,text)}}
+async function saveCurrent(which){if(!state.current)return;const stamp=`${new Date().toISOString().slice(0,19).replace('T',' ')} - Updated ${which} with Videopsalms Command Center.`;if(which==='local'){const text=serializeVp(state.current.localObj);state.current.localText=text;await writeLocalFile(state.current.localHandle,text);await setSongbookViewerFromObj(state.current.localObj,state.current.localName||state.current.pairName)}else{state.current.centralObj=addChangelog(state.current.centralObj,stamp);const text=serializeVp(state.current.centralObj);state.current.centralText=text;await writeCentralFile(state.current.centralHandle,text)}}
 async function applyLanguageAll(){if(!confirm(`Apply ${$('languageMode').value} mode to ALL Local .json files using Local data only?`))return;await scanFolders();let count=0,verses=0;for(const p of state.pairs){if(!p.local)continue;try{const l=parseVp(await readFileHandle(p.local.handle));const res=transformLanguage(l,$('languageMode').value);await writeLocalFile(p.local.handle,serializeVp(res.obj));count++;verses+=res.changed}catch(e){log(`Skipped ${p.name}: ${e.message}`,'bad')}}log(`Applied language mode to ${count} Local files. Changed ${verses} verse fields.`,'good');await compareAll()}
 async function scanImages(){state.imageIndex.clear();const files=await listAllFilesRecursive(state.imagesDir,n=>/\.(png|jpe?g|gif|webp|bmp)$/i.test(n));files.forEach(f=>state.imageIndex.set(f.name.toLowerCase(),f.handle));await detectThemes(files);log(`Indexed ${files.length} images.`,'good')}
 async function scanThumbs(){state.thumbIndex.clear();const files=await listAllFilesRecursive(state.thumbsDir,n=>/\.(png|jpe?g|gif|webp|bmp|mp4|mov|avi|wmv|mkv)$/i.test(n));files.forEach(f=>state.thumbIndex.set(f.name.toLowerCase(),f.handle));log(`Indexed ${files.length} thumbnails/media.`,'good')}
@@ -1003,24 +1003,32 @@ function sectionLabelSimple(v){
   const sectionNumber=(id!=null&&String(id).trim()!==''&&String(id).trim()!=='0')?String(id).trim():'';
   return sectionNumber?`${base} ${sectionNumber}`:base;
 }
-function extractSongLyrics(song){
-  const verses=Array.isArray(song?.Verses)?song.Verses:[];
-  if(!verses.length)return '(no verses)';
-  return verses.map(v=>{
-    const label=sectionLabelSimple(v);
-    const text=String(v?.Text||'').trim();
-    return text?`${label}\n${text}`:label;
-  }).filter(Boolean).join('\n\n');
-}
-function renderSongbookLyrics(text){
+function cleanSongbookLyricsMarkup(text){
   const safe=esc(String(text||''));
   return safe.replace(/&lt;cFF00F2F2&gt;([\s\S]*?)&lt;\/c&gt;/gi,'<span class="secondLang">$1</span>').replace(/&lt;c[0-9A-Fa-f]{8}&gt;/g,'').replace(/&lt;\/c&gt;/g,'');
 }
-function buildSongbookViewerSongs(obj){
+function renderSongbookLyrics(text){
+  return cleanSongbookLyricsMarkup(text);
+}
+function resolveVerseBackgroundImage(song,verse,defaultImage=''){
+  const verseImage=String(verse?.Style?.Background?.Image||'').trim();
+  if(verseImage)return {file:verseImage,source:'verse'};
+  const songImage=String(song?.Style?.Background?.Image||'').trim();
+  if(songImage)return {file:songImage,source:'song'};
+  return {file:String(defaultImage||'').trim(),source:'default'};
+}
+function buildSongbookViewerSongs(obj,defaultImage=''){
   return collectSongs(obj).map((entry,i)=>{
     const sourceSong=entry.song||{};
     const title=getTitle(sourceSong)||`Song ${i+1}`;
-    return {title,number:getSongNumber(sourceSong),lyrics:extractSongLyrics(sourceSong)};
+    const verses=Array.isArray(sourceSong?.Verses)?sourceSong.Verses:[];
+    const sections=verses.map(v=>({
+      label:sectionLabelSimple(v),
+      text:String(v?.Text||'').trim(),
+      image:resolveVerseBackgroundImage(sourceSong,v,defaultImage)
+    }));
+    const lyrics=sections.length?sections.map(x=>x.text?`${x.label}\n${x.text}`:x.label).join('\n\n'):'(no verses)';
+    return {title,number:getSongNumber(sourceSong),lyrics,sections};
   });
 }
 function sortSongbookSongs(songs,mode='number'){
@@ -1033,10 +1041,11 @@ function sortSongbookSongs(songs,mode='number'){
     return a.title.localeCompare(b.title,undefined,{sensitivity:'base'});
   });
 }
-function setSongbookViewerFromObj(obj,name='Loaded songbook'){
-  const songs=buildSongbookViewerSongs(obj||{});
+async function setSongbookViewerFromObj(obj,name='Loaded songbook'){
+  const defaultImage=await readStyleFileImage(state.songBookStyleFile)||state.songbookViewer?.defaultImage||'00_Spring_VideoPsalms-Blank.png';
+  const songs=buildSongbookViewerSongs(obj||{},defaultImage);
   const sort=state.songbookViewer?.sort||'number';
-  state.songbookViewer={handle:null,name,songs,selected:null,sort};
+  state.songbookViewer={handle:null,name,songs,selected:null,sort,defaultImage};
   $('songbookMeta').textContent=`Loaded from pair: ${name}`;
   $('songbookLyrics').textContent='Select a song to view lyrics.';
   $('songbookSort').value=sort;
@@ -1049,13 +1058,26 @@ function renderSongbookList(){
   $('songbookViewerCount').textContent=`${filtered.length} songs`;
   if(!filtered.length){$('songbookSongList').innerHTML='<div class="empty">No songs match your search.</div>';return;}
   $('songbookSongList').innerHTML=filtered.map(x=>`<div class="songItem ${x.song===state.songbookViewer.selected?'active':''}" data-song-idx="${x.idx}">${esc(formatSongDisplay(x.song))}</div>`).join('');
-  document.querySelectorAll('#songbookSongList [data-song-idx]').forEach(el=>el.onclick=()=>selectSongbookSong(filtered[Number(el.dataset.songIdx)]?.song));
+  document.querySelectorAll('#songbookSongList [data-song-idx]').forEach(el=>el.onclick=()=>{selectSongbookSong(filtered[Number(el.dataset.songIdx)]?.song);});
 }
-function selectSongbookSong(song){
+async function selectSongbookSong(song){
   if(!song)return;
   state.songbookViewer.selected=song;
   $('songbookMeta').textContent=formatSongDisplay(song);
-  $('songbookLyrics').innerHTML=renderSongbookLyrics(song.lyrics||'');
+  let html='';
+  const sections=Array.isArray(song.sections)?song.sections:[];
+  if(!sections.length){
+    html='<div class="empty">(no verses)</div>';
+  }else{
+    for(const section of sections){
+      const file=String(section?.image?.file||'').trim();
+      const source=section?.image?.source||'default';
+      const sourceLabel=source==='verse'?'Verse override':(source==='song'?'Song override':'Songbook default');
+      const preview=file?await previewHtml(file):'<div class="preview"><div class="missing">No image set</div></div>';
+      html+=`<div class="diffGroup"><div class="songSectionLabel">${esc(section.label||'Section')}</div><div class="muted">Image (${esc(sourceLabel)}): <b>${esc(file||'Not found')}</b></div>${preview}<div style="margin-top:8px;white-space:pre-wrap">${renderSongbookLyrics(section.text||'')}</div></div>`;
+    }
+  }
+  $('songbookLyrics').innerHTML=html;
   renderSongbookList();
 }
 async function openSongbookViewer(){
@@ -1063,8 +1085,9 @@ async function openSongbookViewer(){
   const [handle]=await window.showOpenFilePicker({types:[{description:'VideoPsalm Songbooks',accept:{'application/json':['.json','.central']}}]});
   const text=await (await handle.getFile()).text();
   const obj=parseVp(text);
-  const songs=buildSongbookViewerSongs(obj);
-  state.songbookViewer={handle,name:handle.name,songs,selected:null,sort:state.songbookViewer?.sort||'number'};
+  const defaultImage=await readStyleFileImage(state.songBookStyleFile)||state.songbookViewer?.defaultImage||'00_Spring_VideoPsalms-Blank.png';
+  const songs=buildSongbookViewerSongs(obj,defaultImage);
+  state.songbookViewer={handle,name:handle.name,songs,selected:null,sort:state.songbookViewer?.sort||'number',defaultImage};
   $('songbookSort').value=state.songbookViewer.sort;
   $('songbookMeta').textContent=`Opened: ${handle.name}`;
   $('songbookLyrics').textContent='Select a song to view lyrics.';
