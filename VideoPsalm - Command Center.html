@@ -335,7 +335,7 @@ table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}td
         <div id="tab-dashboard"><div class="toolbar"><div class="row"><label class="muted"><input type="checkbox" id="showUnchanged"> Show unchanged</label><input id="dashSearch" class="search" placeholder="Filter songbooks..."></div></div><div id="dashboardList"></div></div>
         <div id="tab-compare" class="hidden"><div class="toolbar"><div></div><div class="row"><input id="diffSearch" class="search" placeholder="Filter differences..."><select id="diffFilter"><option value="all">All</option><option value="lyrics">Lyrics</option><option value="visual">Visual/style</option><option value="metadata">Metadata</option><option value="missing">Added/deleted</option></select></div></div><div id="compareSummary" class="notice">Load or select a changed pair from Dashboard.</div><div id="diffList"></div></div>
         <div id="tab-changelog" class="hidden"><div class="toolbar"><div><span class="pill" id="changeLogCount">0 entries</span></div><div class="row"><input id="changeLogSearch" class="search" placeholder="Filter change log..."><select id="changeLogSource"><option value="central">Central only</option><option value="local">Local only</option><option value="both">Both</option></select><button id="changeLogLoadedBtn">Show loaded pair</button><button id="changeLogAllBtn" class="primary">Show all logs</button></div></div><div class="notice">Change log entries are read from the songbook Description field and are not counted as compare changes.</div><div id="changeLogList" style="margin-top:12px"></div></div>
-        <div id="tab-audit" class="hidden"><div class="toolbar"><div><span class="pill" id="auditCount">0 audit items</span> <span class="pill warn">Song level + Verse level + media refs</span></div><div class="row"><input id="auditSearch" class="search" placeholder="Filter audit..."><select id="auditSource"><option value="local">Local only</option><option value="central">Central only</option><option value="both">Both</option></select><select id="auditLevel"><option value="all">All levels</option><option value="song">Song level</option><option value="verse">Verse level</option></select><button id="auditLoadedBtn">Audit loaded pair</button><button id="auditAllBtn" class="primary">Audit all pairs</button><button id="cleanNoOpLocalBtn">Clean Local empty style overrides</button><button id="cleanNoOpCentralBtn">Clean Central empty style overrides</button></div></div><div class="notice">Audit scans embedded style overrides inside the songbook files themselves and shows media previews when a referenced image/thumb can be found.</div><div id="auditList" style="margin-top:12px"></div></div>
+        <div id="tab-audit" class="hidden"><div class="toolbar"><div><span class="pill" id="auditCount">0 audit items</span> <span class="pill warn">Song level + Verse level + media refs</span></div><div class="row"><input id="auditSearch" class="search" placeholder="Filter audit..."><select id="auditSource"><option value="local">Local only</option><option value="central">Central only</option><option value="both">Both</option></select><select id="auditLevel"><option value="all">All levels</option><option value="song">Song level</option><option value="verse">Verse level</option></select><button id="auditLoadedBtn">Audit loaded pair</button><button id="auditAllBtn" class="primary">Audit all pairs</button><button id="cleanNoOpLocalBtn">Clean Local empty style overrides</button><button id="cleanNoOpCentralBtn">Clean Central empty style overrides</button><button id="scanHeaderLyricsBtn">Repair Header Template Lyrics</button></div></div><div class="notice">Audit scans embedded style overrides inside the songbook files themselves and shows media previews when a referenced image/thumb can be found.</div><div id="headerLyricsPanel" class="diffItem hidden" style="margin-top:12px"></div><div id="auditList" style="margin-top:12px"></div></div>
         <div id="tab-unverified" class="hidden"><div class="toolbar"><div><span class="pill warn" id="unverifiedCount">0 unverified songs</span> <span class="pill">Central copyright status scan</span></div><div class="row"><input id="unverifiedSearch" class="search" placeholder="Filter unverified songs..."><button id="scanUnverifiedLoadedBtn">Scan loaded Central</button><button id="scanUnverifiedAllBtn" class="primary">Scan all Central files</button></div></div><div class="notice">This shows songs that contain <span class="kbd">Status: Translation Unverified</span>. Use it after pushing Local lyric edits into Central so you can manually review/fix the second-language text later.</div><div id="unverifiedList" style="margin-top:12px"></div></div>
         <div id="tab-themes" class="hidden"><div class="toolbar"><div><span class="pill" id="themeCount">0 themes detected</span> <span class="pill">{Theme}_VideoPsalms-{Blank|Main|Welcome|Goodbye}.png</span></div><button id="scanThemesBtn">Scan Images for themes</button></div><div id="auxThemeWarning" class="notice danger" style="font-size:16px;font-weight:850;margin-bottom:12px;">⚠️ Make sure the Aux Local songbook is loaded before pushing a theme.</div><div class="notice">Theme preview order is Main Graphic, Welcome, Ending, Blank. <b>Push Theme to Local</b> updates the loaded Local Aux Welcome/Ending slides plus RootStyle.json Main Graphic and SongBookStyle.json Blank background. Central is not changed here.</div><div id="currentThemeStatus" class="themeCurrent" style="margin-top:12px"></div><div id="themeList" class="themeGrid" style="margin-top:12px"></div></div>
         <div id="tab-songbook" class="hidden"><div class="toolbar"><div class="row"><button id="openSongbookViewerBtn" class="primary">Open songbook</button><span class="pill" id="songbookViewerCount">0 songs</span></div><div class="row"><input id="songbookSearch" class="search" placeholder="Search songs..."><select id="songbookSort"><option value="number">Sort by song number</option><option value="alpha">Sort alphabetically</option></select></div></div><div class="songbookLayout"><div><div class="songList" id="songbookSongList"><div class="empty">Open a songbook to list songs.</div></div></div><div><div class="songMeta" id="songbookMeta">No song selected.</div><div class="songLyrics" id="songbookLyrics">Select a song to view lyrics.</div></div></div></div>
@@ -347,7 +347,7 @@ table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}td
 </main>
 <script>
 'use strict';
-const state={rootDir:null,songBooksDir:null,centralDir:null,imagesDir:null,thumbsDir:null,rootStyleFile:null,songBookStyleFile:null,locals:[],centrals:[],pairs:[],batch:[],current:null,diffs:[],imageIndex:new Map(),thumbIndex:new Map(),themes:new Map(),auditRows:[],unverifiedRows:[],changeLogRows:[],activeTab:'dashboard',autoTabCache:{compare:'',audit:'',unverified:'',changelog:'',songbook:''},songbookViewer:{handle:null,name:'',fileName:'',songs:[],selected:null,sort:'number',defaultImage:'00_Spring_VideoPsalms-Blank.png'}};
+const state={rootDir:null,songBooksDir:null,centralDir:null,imagesDir:null,thumbsDir:null,rootStyleFile:null,songBookStyleFile:null,locals:[],centrals:[],pairs:[],batch:[],current:null,diffs:[],imageIndex:new Map(),thumbIndex:new Map(),themes:new Map(),auditRows:[],unverifiedRows:[],changeLogRows:[],headerLyricsRows:[],headerLyricsSelectedKeys:new Set(),headerLyricsSide:'local',activeTab:'dashboard',autoTabCache:{compare:'',audit:'',unverified:'',changelog:'',songbook:''},songbookViewer:{handle:null,name:'',fileName:'',songs:[],selected:null,sort:'number',defaultImage:'00_Spring_VideoPsalms-Blank.png'}};
 const $=id=>document.getElementById(id);
 function log(msg,type=''){const d=document.createElement('div');d.textContent=`[${new Date().toLocaleTimeString()}] ${msg}`;if(type==='good')d.style.color='var(--good)';if(type==='bad')d.style.color='var(--bad)';if(type==='warn')d.style.color='var(--warn)';$('log').appendChild(d);$('log').scrollTop=$('log').scrollHeight}
 function setPath(id,h,msg='Not selected'){$(id).textContent=h?h.name:msg}
@@ -812,6 +812,163 @@ async function cleanNoOpStylesLoaded(side='local'){
   await refreshActiveTabFromLoadedPair(true);
 }
 
+
+function looksLikeLyricText(text){
+  const t=String(text??'').trim();
+  if(!t)return false;
+  if(t.length<8)return false;
+  if(/[{}\[\]]/.test(t))return false;
+  if(/^(none|null|n\/a|default)$/i.test(t))return false;
+  const letters=(t.match(/[A-Za-z]/g)||[]).length;
+  const words=t.split(/\s+/).filter(Boolean).length;
+  return letters>=6&&words>=3;
+}
+function cleanupVerseStyleAfterHeaderMove(verse){
+  if(!isObj(verse)||!isObj(verse.Style))return;
+  const style=verse.Style;
+  if(isObj(style.Header)){
+    const headerKeys=Object.keys(style.Header);
+    if(headerKeys.length===1&&headerKeys[0]==='Template')delete style.Header;
+  }
+  if(!Object.keys(style).length)delete verse.Style;
+}
+function collectMisplacedHeaderLyrics(obj,side='Local'){
+  const rows=[];
+  for(const {song} of collectSongs(obj)){
+    const verses=Array.isArray(song?.Verses)?song.Verses:[];
+    verses.forEach((v,i)=>{
+      const text=String(v?.Text??'').trim();
+      const headerRaw=getHeaderTemplate(v);
+      const header=String(headerRaw??'').trim();
+      if(text) return;
+      if(!header) return;
+      if(!looksLikeLyricText(header)) return;
+      rows.push({side,title:getTitle(song),sid:getSongId(song),index:i,section:sectionLabel(v,i),tag:v?.Tag??'',id:v?.ID??'',template:headerRaw});
+    });
+  }
+  return rows;
+}
+async function scanMisplacedHeaderLyricsLoaded(){
+  renderHeaderLyricsPanel();
+}
+function headerLyricsCandidateKey(r){return `${r.side}|${r.sid}|${r.index}|${r.tag}|${r.id}|${String(r.template)}`;}
+function getSelectedHeaderLyricsKeys(){
+  return [...state.headerLyricsSelectedKeys];
+}
+function renderHeaderLyricsPanel(message='',type=''){
+  const panel=$('headerLyricsPanel');
+  if(!panel)return;
+  panel.classList.remove('hidden');
+  const statusCls=type==='bad'?'notice danger':type==='good'?'notice ok':'notice';
+  const statusHtml=message?`<div class="${statusCls}" style="margin-bottom:10px">${esc(message)}</div>`:'';
+  const rows=state.headerLyricsRows||[];
+  const selectedCount=[...state.headerLyricsSelectedKeys].filter(k=>rows.some(r=>headerLyricsCandidateKey(r)===k)).length;
+  let listHtml='';
+  if(!rows.length){
+    listHtml='<div class="notice ok">No misplaced Header.Template lyrics found.</div>';
+  }else{
+    listHtml=rows.map((r,i)=>{
+      const key=headerLyricsCandidateKey(r);
+      const preview=String(r.template||'').replace(/\s+/g,' ').trim().slice(0,160);
+      const checked=state.headerLyricsSelectedKeys.has(key)?'checked':'';
+      return `<div class="change">
+        <label class="row"><input type="checkbox" data-header-lyrics-key="${esc(key)}" ${checked}> <b>#${i+1}</b> <span class="pill">${esc(r.side)}</span> <span>${esc(r.sid||'(no song number)')} • ${esc(r.title)} • ${esc(r.section)}</span></label>
+        <div class="muted" style="margin-top:8px">${esc(preview||'(empty template)')}</div>
+        <details style="margin-top:8px"><summary class="muted">Full Header.Template</summary><pre>${esc(String(r.template||''))}</pre></details>
+      </div>`;
+    }).join('');
+  }
+  panel.innerHTML=`<div class="diffHead"><div><div class="diffTitle">Misplaced Header Lyrics Candidates</div><div class="muted">Find and repair verses where Header.Template likely contains main lyrics.</div></div></div>
+  ${statusHtml}
+  <div class="row" style="margin-bottom:10px">
+    <select id="headerLyricsSide"><option value="local">Local only</option><option value="central">Central only</option><option value="both">Both</option></select>
+    <button id="headerLyricsScanBtn" class="primary">Find Misplaced Header Lyrics</button>
+    <button id="headerLyricsSelectAllBtn">Select all</button>
+    <button id="headerLyricsClearBtn">Clear</button>
+    <button id="headerLyricsApplyBtn" class="good" ${selectedCount?'':'disabled'}>Apply selected repairs</button>
+  </div>
+  <div class="muted" style="margin-bottom:8px">${rows.length?`Found ${rows.length} possible misplaced lyrics. Selected ${selectedCount}.`:'Run a scan to populate candidates.'}</div>
+  ${listHtml}
+  <div id="headerLyricsConfirm" class="hidden" style="margin-top:10px"></div>`;
+  $('headerLyricsSide').value=state.headerLyricsSide||'local';
+  $('headerLyricsScanBtn').onclick=scanHeaderLyricsCandidates;
+  $('headerLyricsSelectAllBtn').onclick=()=>{state.headerLyricsSelectedKeys=new Set(rows.map(r=>headerLyricsCandidateKey(r)));renderHeaderLyricsPanel(message,type)};
+  $('headerLyricsClearBtn').onclick=()=>{state.headerLyricsSelectedKeys=new Set();renderHeaderLyricsPanel(message,type)};
+  $('headerLyricsApplyBtn').onclick=prepareApplyHeaderLyricsRepair;
+  document.querySelectorAll('#headerLyricsPanel input[data-header-lyrics-key]').forEach(el=>el.onchange=()=>{if(el.checked)state.headerLyricsSelectedKeys.add(el.dataset.headerLyricsKey);else state.headerLyricsSelectedKeys.delete(el.dataset.headerLyricsKey);renderHeaderLyricsPanel(message,type)});
+}
+function scanHeaderLyricsCandidates(){
+  if(!state.current){renderHeaderLyricsPanel('Load a pair first.','bad');return;}
+  state.headerLyricsSide=$('headerLyricsSide')?.value||'local';
+  const src=state.headerLyricsSide;
+  let rows=[];
+  if(src==='local'||src==='both')rows.push(...collectMisplacedHeaderLyrics(state.current.localObj,'Local'));
+  if(src==='central'||src==='both')rows.push(...collectMisplacedHeaderLyrics(state.current.centralObj,'Central'));
+  state.headerLyricsRows=rows;
+  state.headerLyricsSelectedKeys=new Set();
+  renderHeaderLyricsPanel(rows.length?`Found ${rows.length} possible misplaced lyrics.`:'No misplaced Header.Template lyrics found.',rows.length?'warn':'good');
+  log(`Misplaced Header Lyrics scan found ${rows.length} candidate verse(s).`,rows.length?'warn':'good');
+}
+function prepareApplyHeaderLyricsRepair(){
+  const selected=getSelectedHeaderLyricsKeys();
+  if(!selected.length){renderHeaderLyricsPanel('Select at least one candidate before applying repair.','bad');return;}
+  const box=$('headerLyricsConfirm');
+  if(!box)return;
+  box.classList.remove('hidden');
+  box.innerHTML=`<div class="notice warn">You are about to move Header.Template text into Text for ${selected.length} selected section(s). A backup will be created before saving.</div>
+    <div class="row" style="margin-top:8px"><button id="headerLyricsConfirmApply" class="good">Apply Repair</button><button id="headerLyricsConfirmCancel">Cancel</button></div>`;
+  $('headerLyricsConfirmApply').onclick=()=>applyHeaderLyricsRepair(selected);
+  $('headerLyricsConfirmCancel').onclick=()=>box.classList.add('hidden');
+}
+async function applyHeaderLyricsRepair(selectedKeys){
+  try{
+    const rows=(state.headerLyricsRows||[]).filter(r=>selectedKeys.includes(headerLyricsCandidateKey(r)));
+    let localMoved=0,centralMoved=0;
+    const applySide=(root,side)=>{
+      let moved=0;
+      const candidates=rows.filter(r=>r.side===side);
+      if(!candidates.length)return moved;
+      for(const {song} of collectSongs(root)){
+        const title=getTitle(song),sid=getSongId(song);
+        const verses=Array.isArray(song?.Verses)?song.Verses:[];
+        candidates.forEach(c=>{if(c.title!==title||c.sid!==sid)return;const v=verses[c.index];if(!v)return;const text=String(v?.Text??'').trim();const header=getHeaderTemplate(v);if(text||!String(header).trim()||!looksLikeLyricText(header))return;v.Text=String(header);if(isObj(v?.Style?.Header)&&Object.prototype.hasOwnProperty.call(v.Style.Header,'Template'))delete v.Style.Header.Template;cleanupVerseStyleAfterHeaderMove(v);moved++;});
+      }
+      return moved;
+    };
+    const backups=[];
+    if(rows.some(r=>r.side==='Local')){
+      localMoved=applySide(state.current.localObj,'Local');
+      if(localMoved){
+        state.current.localText=serializeVp(state.current.localObj);
+        const b=await writeLocalFile(state.current.localHandle,state.current.localText);
+        if(b)backups.push(`Local ${b}`);
+      }
+    }
+    if(rows.some(r=>r.side==='Central')){
+      centralMoved=applySide(state.current.centralObj,'Central');
+      if(centralMoved){
+        state.current.centralText=serializeVp(state.current.centralObj);
+        const b=await writeCentralFile(state.current.centralHandle,state.current.centralText);
+        if(b)backups.push(`Central ${b}`);
+      }
+    }
+    const total=localMoved+centralMoved;
+    state.headerLyricsSelectedKeys=new Set();
+    await refreshActiveTabFromLoadedPair(true);
+    scanHeaderLyricsCandidates();
+    await auditLoaded(false);
+    if(state.activeTab==='compare'&&state.current)await compareCurrent();
+    if(state.activeTab==='songbook'&&state.current)await setSongbookViewerFromObj(state.current.localObj,state.current.pairName,state.current.localName||state.current.pairFileName||'');
+    const backupMsg=backups.length?` Backup created: ${backups.join(' ; ')}.`:'';
+    renderHeaderLyricsPanel(total?`Repaired ${total} misplaced Header.Template lyric section(s).${backupMsg} Candidate list refreshed. Audit refreshed.`:'No misplaced Header.Template lyrics found.',total?'good':'good');
+    const box=$('headerLyricsConfirm');if(box)box.classList.add('hidden');
+    log(`Misplaced Header Lyrics repaired. Local moved: ${localMoved}; Central moved: ${centralMoved}.`,'good');
+  }catch(e){
+    renderHeaderLyricsPanel(`Repair failed: ${e.message}`,'bad');
+    log(`Misplaced Header Lyrics repair failed: ${e.message}`,'bad');
+  }
+}
+
 function tokenizeDiff(s){return String(s??'').match(/\s+|[^\s]+/g)||[]}
 function diffWords(a,b){const A=tokenizeDiff(a),B=tokenizeDiff(b),m=A.length,n=B.length;const dp=Array.from({length:m+1},()=>Array(n+1).fill(0));for(let i=m-1;i>=0;i--)for(let j=n-1;j>=0;j--)dp[i][j]=A[i]===B[j]?dp[i+1][j+1]+1:Math.max(dp[i+1][j],dp[i][j+1]);let i=0,j=0,outA='',outB='';while(i<m&&j<n){if(A[i]===B[j]){const e=esc(A[i]);outA+=`<span class="diffSame">${e}</span>`;outB+=`<span class="diffSame">${e}</span>`;i++;j++}else if(dp[i+1][j]>=dp[i][j+1]){outA+=`<span class="diffDel">${esc(A[i])}</span>`;i++}else{outB+=`<span class="diffIns">${esc(B[j])}</span>`;j++}}while(i<m){outA+=`<span class="diffDel">${esc(A[i])}</span>`;i++}while(j<n){outB+=`<span class="diffIns">${esc(B[j])}</span>`;j++}return{central:outA,local:outB}}
 function collectUnverifiedRows(obj,bookName,side='Central'){const rows=[];for(const {song,path} of collectSongs(obj)){if(hasSongStatus(song))rows.push({book:bookName,side,title:getTitle(song),sid:getSongId(song),path,textPreview:(song.Verses||[]).map(v=>String(v?.Text||'').replace(/<c[0-9A-Fa-f]+>|<\/c>/gi,'')).join(' ').replace(/\s+/g,' ').slice(0,180)})}return rows}
@@ -1223,6 +1380,7 @@ $('scanBtn').onclick=scanFolders;$('scanCompareAllBtn').onclick=compareAll;$('lo
 $('applyLanguageLoadedBtn').onclick=async()=>{if(!state.current)return alert('Load a pair first.');if(!confirm(`Apply ${$('languageMode').value} mode to loaded Local using Local data only?`))return;const r=transformLanguage(state.current.localObj,$('languageMode').value);state.current.localObj=r.obj;await saveCurrent('local');log(`Applied language mode to loaded Local. Changed ${r.changed} verse fields and cleaned ${r.cleaned||0} empty style override(s).`,'good');await compareCurrent()};$('applyLanguageAllBtn').onclick=applyLanguageAll;
 $('cleanNoOpLocalBtn').onclick=()=>cleanNoOpStylesLoaded('local');
 $('cleanNoOpCentralBtn').onclick=()=>cleanNoOpStylesLoaded('central');
+$('scanHeaderLyricsBtn').onclick=scanMisplacedHeaderLyricsLoaded;
 
 $('openSongbookViewerBtn').onclick=openSongbookViewer;$('songbookSearch').oninput=renderSongbookList;$('songbookSort').onchange=e=>{state.songbookViewer.sort=e.target.value;renderSongbookList();};$('changeLogLoadedBtn').textContent='Refresh loaded pair';$('changeLogLoadedBtn').onclick=showLoadedChangeLog;$('changeLogAllBtn').onclick=showAllChangeLogs;$('changeLogSearch').oninput=()=>renderChangeLogRows();$('changeLogSource').onchange=async()=>{if(state.current){await showLoadedChangeLog(false);await refreshActiveTabFromLoadedPair(true);}else if(state.batch?.length)await showAllChangeLogs()};$('auditLoadedBtn').textContent='Refresh loaded pair';$('auditLoadedBtn').onclick=auditLoaded;$('auditAllBtn').onclick=auditAll;$('auditSearch').oninput=()=>renderAuditRows();$('auditLevel').onchange=()=>renderAuditRows();$('scanUnverifiedLoadedBtn').textContent='Refresh loaded Central';$('scanUnverifiedLoadedBtn').onclick=scanUnverifiedLoaded;$('scanUnverifiedAllBtn').onclick=scanUnverifiedAll;$('unverifiedSearch').oninput=()=>renderUnverifiedRows();$('scanThemesBtn').onclick=async()=>{if(!state.imagesDir)return alert('Pick Images folder first.');await scanImages()};$('diffSearch').oninput=renderDiffs;$('diffFilter').onchange=renderDiffs;$('dashSearch').oninput=renderDashboard;$('showUnchanged').onchange=renderDashboard;
 (async function init(){if(window.showDirectoryPicker){$('supportNotice').className='notice ok';$('supportNotice').textContent='Direct folder editing supported. Use Chrome or Edge. Note: browsers cannot be forced to open a specific G:\ path, but this tool remembers folder permissions after you pick the VideoPsalm root once.';await restoreSavedFolders()}else{$('supportNotice').className='notice danger';$('supportNotice').textContent='This browser cannot edit folders directly. Use Chrome or Edge.'}log('Ready. Pick VideoPsalm root or SongBooks, then Scan + compare all.')})();
