@@ -351,7 +351,7 @@ table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px}td
 </main>
 <script>
 'use strict';
-const state={rootDir:null,songBooksDir:null,centralDir:null,imagesDir:null,thumbsDir:null,rootStyleFile:null,songBookStyleFile:null,locals:[],centrals:[],pairs:[],batch:[],current:null,diffs:[],imageIndex:new Map(),thumbIndex:new Map(),themes:new Map(),auditRows:[],unverifiedRows:[],changeLogRows:[],headerLyricsRows:[],headerLyricsSelectedKeys:new Set(),headerLyricsMessage:'',headerLyricsMessageType:'',headerLyricsConfirming:false,headerLyricsOwnerKey:'',headerLyricsPanelOpen:false,purgeStatusMessage:'',purgeStatusType:'',purgeConfirming:'',purgeOwnerKey:'',activeTab:'dashboard',autoTabCache:{compare:'',audit:'',unverified:'',changelog:'',songbook:''},songbookViewer:{handle:null,name:'',fileName:'',songs:[],selected:null,sort:'number',defaultImage:'00_Spring_VideoPsalms-Blank.png'}};
+const state={rootDir:null,songBooksDir:null,centralDir:null,imagesDir:null,thumbsDir:null,rootStyleFile:null,songBookStyleFile:null,locals:[],centrals:[],pairs:[],batch:[],current:null,themePair:null,diffs:[],imageIndex:new Map(),thumbIndex:new Map(),themes:new Map(),auditRows:[],unverifiedRows:[],changeLogRows:[],headerLyricsRows:[],headerLyricsSelectedKeys:new Set(),headerLyricsMessage:'',headerLyricsMessageType:'',headerLyricsConfirming:false,headerLyricsOwnerKey:'',headerLyricsPanelOpen:false,purgeStatusMessage:'',purgeStatusType:'',purgeConfirming:'',purgeOwnerKey:'',activeTab:'dashboard',autoTabCache:{compare:'',audit:'',unverified:'',changelog:'',songbook:''},songbookViewer:{handle:null,name:'',fileName:'',songs:[],selected:null,sort:'number',defaultImage:'00_Spring_VideoPsalms-Blank.png'}};
 const $=id=>document.getElementById(id);
 function log(msg,type=''){const d=document.createElement('div');d.textContent=`[${new Date().toLocaleTimeString()}] ${msg}`;if(type==='good')d.style.color='var(--good)';if(type==='bad')d.style.color='var(--bad)';if(type==='warn')d.style.color='var(--warn)';$('log').appendChild(d);$('log').scrollTop=$('log').scrollHeight}
 function setPath(id,h,msg='Not selected'){$(id).textContent=h?h.name:msg}
@@ -581,6 +581,7 @@ async function onPairLoaded(){
 }
 async function onActiveTabChanged(name){
   state.activeTab=name;
+  if(name==='themes')await renderThemes();
   await refreshActiveTabFromLoadedPair(false);
   if(name==='purge'&&state.current)scanHeaderLyricsCandidates(false);
 }
@@ -1127,7 +1128,23 @@ function looksLikeAuxSongbook(obj){
   const aux=currentAuxThemeImages(obj);
   return !!(aux.Welcome || aux.Goodbye);
 }
-function isAuxLoaded(){return !!(state.current && looksLikeAuxSongbook(state.current.localObj));}
+function looksLikeAuxPair(p){
+  const text=[p?.name,p?.fileName,p?.local?.name,p?.central?.name].join(' ').toLowerCase();
+  return /\baux\b|auxiliary|auxiliaire|00[_ -]?aux/.test(text);
+}
+function findAuxPair(){return (state.pairs||[]).find(p=>p?.local&&p?.central&&looksLikeAuxPair(p));}
+async function ensureThemePairLoaded(){
+  if(state.themePair?.localObj && looksLikeAuxSongbook(state.themePair.localObj))return true;
+  const pair=findAuxPair();
+  if(!pair){state.themePair=null;return false;}
+  try{
+    const [lt,ct]=await Promise.all([readFileHandle(pair.local.handle),readFileHandle(pair.central.handle)]);
+    const localObj=parseVp(lt),centralObj=parseVp(ct);
+    state.themePair={pairName:getSongbookTitle(localObj,pair.local.name)||pair.name,pairFileName:pair.fileName||pair.local.name||pair.central.name,localName:pair.local.name,centralName:pair.central.name,localHandle:pair.local.handle,centralHandle:pair.central.handle,localText:lt,centralText:ct,localObj,centralObj};
+    return true;
+  }catch(e){state.themePair=null;return false;}
+}
+function isAuxLoaded(){return !!(state.themePair && looksLikeAuxSongbook(state.themePair.localObj));}
 function updateAuxThemeWarning(){
   const el=$('auxThemeWarning');
   if(!el)return;
@@ -1136,26 +1153,27 @@ function updateAuxThemeWarning(){
     el.style.fontSize='16px';
     el.style.fontWeight='850';
     el.style.marginBottom='12px';
-    el.textContent='✅ Aux Local songbook is loaded. Theme push will update Aux Welcome/Ending slides and the two style files.';
+    el.textContent='✅ AUX songbook is loaded for Themes. Theme push will update AUX Welcome/Ending slides and the two style files.';
   }else{
     el.className='notice danger';
     el.style.fontSize='16px';
     el.style.fontWeight='850';
     el.style.marginBottom='12px';
-    el.textContent='⚠️ Make sure the Aux Local songbook is loaded before pushing a theme. If another songbook is loaded, the style files may change but Aux Welcome/Ending will not.';
+    el.textContent='AUX songbook not found. Themes are currently configured to use the Auxiliary/AUX pair.';
   }
 }
 async function renderCurrentThemeSettings(){
+  await ensureThemePairLoaded();
   updateAuxThemeWarning();
   const el=$('currentThemeStatus');
   if(!el)return;
   const main=await readStyleFileImage(state.rootStyleFile);
   const blank=await readStyleFileImage(state.songBookStyleFile);
-  const aux=currentAuxThemeImages(state.current?.localObj);
+  const aux=currentAuxThemeImages(state.themePair?.localObj);
   const items=[
     {label:'Current Main Graphic',file:main,source:'RootStyle.json'},
-    {label:'Current Welcome',file:aux.Welcome,source:'Loaded Local Aux'},
-    {label:'Current Ending',file:aux.Goodbye,source:'Loaded Local Aux'},
+    {label:'Current Welcome',file:aux.Welcome,source:'AUX Local'},
+    {label:'Current Ending',file:aux.Goodbye,source:'AUX Local'},
     {label:'Current Blank',file:blank,source:'SongBookStyle.json'}
   ];
   let html='';
@@ -1287,8 +1305,8 @@ async function applyThemeToStyleFiles(slots){
   return {changed,details};
 }
 async function applyTheme(theme,target){
-  if(!state.current)return alert('Load the Aux Local pair first. Theme push updates the loaded Local Aux songbook plus RootStyle.json and SongBookStyle.json.');
-  if(!isAuxLoaded())return alert('Aux Local is not loaded. Load the Aux songbook pair first, then push the theme. This prevents updating the style files while leaving the Aux Welcome/Ending slides unchanged.');
+  await ensureThemePairLoaded();
+  if(!isAuxLoaded()){updateAuxThemeWarning();log('AUX songbook not found. Cannot push theme until an Auxiliary/AUX pair is available.','bad');return;}
   const slots=state.themes.get(theme);
   if(!slots)return;
   const missing=[];
@@ -1296,16 +1314,17 @@ async function applyTheme(theme,target){
   if(!slots.Welcome)missing.push('Welcome');
   if(!slots.Goodbye)missing.push('Ending/Goodbye');
   if(!slots.Blank)missing.push('Blank');
-  if(missing.length && !confirm(`Theme "${theme}" is missing: ${missing.join(', ')}. Continue anyway?`))return;
-  const msg=`Push theme "${theme}" to Local?\n\nThis changes:\n- Loaded Local Aux Welcome song [Welcome] slide → theme Welcome image\n- Loaded Local Aux Ending Song [Good Bye]/[GoodBye] slide → theme Ending image\n- RootStyle.json Background.Image → theme Main Graphic\n- SongBookStyle.json Background.Image → theme Blank\n\nCentral is not changed here. Use Compare/Push later if you want to promote the Local Aux change.`;
-  if(!confirm(msg))return;
+  if(missing.length)log(`Theme "${theme}" is missing: ${missing.join(', ')}. Applying available slots only.`,'warn');
   let total=0;
   const allDetails=[];
-  const r=applyAuxThemeRefs(state.current.localObj,slots);
-  state.current.localObj=r.obj;
+  const r=applyAuxThemeRefs(state.themePair.localObj,slots);
+  state.themePair.localObj=r.obj;
   total+=r.changed;
   allDetails.push(...r.details.map(x=>'Local Aux: '+x));
-  if(r.changed)await saveCurrent('local');
+  if(r.changed){
+    state.themePair.localText=serializeVp(state.themePair.localObj);
+    await writeLocalFile(state.themePair.localHandle,state.themePair.localText);
+  }
   const sr=await applyThemeToStyleFiles(slots);
   total+=sr.changed;
   allDetails.push(...sr.details);
@@ -1442,6 +1461,6 @@ $('cleanNoOpLocalBtn').onclick=()=>cleanNoOpStylesLoaded('local');
 $('cleanNoOpCentralBtn').onclick=()=>cleanNoOpStylesLoaded('central');
 $('scanHeaderLyricsBtn').onclick=scanHeaderLyricsCandidates;
 
-$('openSongbookViewerBtn').onclick=openSongbookViewer;$('songbookSearch').oninput=renderSongbookList;$('songbookSort').onchange=e=>{state.songbookViewer.sort=e.target.value;renderSongbookList();};$('changeLogLoadedBtn').textContent='Refresh loaded pair';$('changeLogLoadedBtn').onclick=showLoadedChangeLog;$('changeLogAllBtn').onclick=showAllChangeLogs;$('changeLogSearch').oninput=()=>renderChangeLogRows();$('changeLogSource').onchange=async()=>{if(state.current){await showLoadedChangeLog(false);await refreshActiveTabFromLoadedPair(true);}else if(state.batch?.length)await showAllChangeLogs()};$('auditLoadedBtn').textContent='Refresh loaded pair';$('auditLoadedBtn').onclick=auditLoaded;$('auditAllBtn').onclick=auditAll;$('auditSearch').oninput=()=>renderAuditRows();$('auditLevel').onchange=()=>renderAuditRows();$('scanUnverifiedLoadedBtn').textContent='Refresh loaded Central';$('scanUnverifiedLoadedBtn').onclick=scanUnverifiedLoaded;$('scanUnverifiedAllBtn').onclick=scanUnverifiedAll;$('unverifiedSearch').oninput=()=>renderUnverifiedRows();$('scanThemesBtn').onclick=async()=>{if(!state.imagesDir)return alert('Pick Images folder first.');await scanImages()};$('diffSearch').oninput=renderDiffs;$('diffFilter').onchange=renderDiffs;$('dashSearch').oninput=renderDashboard;$('showUnchanged').onchange=renderDashboard;
+$('openSongbookViewerBtn').onclick=openSongbookViewer;$('songbookSearch').oninput=renderSongbookList;$('songbookSort').onchange=e=>{state.songbookViewer.sort=e.target.value;renderSongbookList();};$('changeLogLoadedBtn').textContent='Refresh loaded pair';$('changeLogLoadedBtn').onclick=showLoadedChangeLog;$('changeLogAllBtn').onclick=showAllChangeLogs;$('changeLogSearch').oninput=()=>renderChangeLogRows();$('changeLogSource').onchange=async()=>{if(state.current){await showLoadedChangeLog(false);await refreshActiveTabFromLoadedPair(true);}else if(state.batch?.length)await showAllChangeLogs()};$('auditLoadedBtn').textContent='Refresh loaded pair';$('auditLoadedBtn').onclick=auditLoaded;$('auditAllBtn').onclick=auditAll;$('auditSearch').oninput=()=>renderAuditRows();$('auditLevel').onchange=()=>renderAuditRows();$('scanUnverifiedLoadedBtn').textContent='Refresh loaded Central';$('scanUnverifiedLoadedBtn').onclick=scanUnverifiedLoaded;$('scanUnverifiedAllBtn').onclick=scanUnverifiedAll;$('unverifiedSearch').oninput=()=>renderUnverifiedRows();$('scanThemesBtn').onclick=async()=>{if(!state.imagesDir){log('Pick Images folder first.','bad');return;}await scanImages()};$('diffSearch').oninput=renderDiffs;$('diffFilter').onchange=renderDiffs;$('dashSearch').oninput=renderDashboard;$('showUnchanged').onchange=renderDashboard;
 (async function init(){if(window.showDirectoryPicker){$('supportNotice').className='notice ok';$('supportNotice').textContent='Direct folder editing supported. Use Chrome or Edge. Note: browsers cannot be forced to open a specific G:\ path, but this tool remembers folder permissions after you pick the VideoPsalm root once.';await restoreSavedFolders()}else{$('supportNotice').className='notice danger';$('supportNotice').textContent='This browser cannot edit folders directly. Use Chrome or Edge.'}log('Ready. Pick VideoPsalm root or SongBooks, then Scan + compare all.')})();
 </script></body></html>
