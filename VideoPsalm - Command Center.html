@@ -353,7 +353,28 @@ function log(msg,type=''){const d=document.createElement('div');d.textContent=`[
 function setPath(id,h,msg='Not selected'){const el=$(id);if(!el)return;el.textContent=h?h.name:msg}
 let toastTimer=null;
 function showToast(message,type='good'){const el=$('toast');if(!el)return;el.textContent=message;el.className=`toast ${type} show`;if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3000)}
-function updateScanButtonState(){const btn=$('scanCompareAllBtn');if(!btn)return;const ready=Boolean(state.rootDir);btn.disabled=!ready;btn.classList.toggle('scanWarn',!ready);btn.title=ready?'':'Choose the VideoPsalm root folder first.';}
+async function hasUsableVideoPsalmRoot(){
+  if(!state.rootDir)return false;
+  try{
+    const perm=await state.rootDir.queryPermission({mode:'readwrite'});
+    if(perm!=='granted')return false;
+    for await(const _ of state.rootDir.entries()){break;}
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+async function updateScanButtonState(){
+  const btn=$('scanCompareAllBtn');
+  if(!btn)return false;
+  const ready=await hasUsableVideoPsalmRoot();
+  btn.disabled=!ready;
+  btn.classList.toggle('scanWarn',!ready);
+  btn.title=ready?'':'Choose the VideoPsalm root folder first.';
+  const rootStatus=ready?'ready':(state.rootDir?'remembered but permission needed':'not selected');
+  btn.dataset.rootStatus=rootStatus;
+  return ready;
+}
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function baseName(n){return n.replace(/\.central$/i,'').replace(/\.json$/i,'')}
 function centralNameFromLocal(n){return n.replace(/\.json$/i,'.central')}
@@ -419,9 +440,9 @@ async function applyRootFolders(){if(!state.rootDir)return;setPath('rootPath',st
   let thumbs=await trySubdir(state.rootDir,['Videos','Thumbs']);if(thumbs){state.thumbsDir=thumbs;setPath('thumbsPath',thumbs);await saveHandle('thumbsDir',thumbs);await scanThumbs()}
   await findRootStyleFiles();
   await renderCurrentThemeSettings();
-  updateScanButtonState();
+  await updateScanButtonState();
   log('Root folder wiring complete.','good')}
-async function restoreSavedFolders(){for(const [key,prop,pathId] of [['rootDir','rootDir','rootPath'],['songBooksDir','songBooksDir','songBooksPath'],['centralDir','centralDir','centralPath'],['imagesDir','imagesDir','imagesPath'],['thumbsDir','thumbsDir','thumbsPath']]){const h=await loadHandle(key);if(h&&await ensurePerm(h)){state[prop]=h;setPath(pathId,h);log('Restored '+key+'.','good')}}if(state.rootDir)await applyRootFolders();if(state.imagesDir&&!state.imageIndex.size)await scanImages();if(state.thumbsDir&&!state.thumbIndex.size)await scanThumbs();if(state.songBooksDir)await autoFindCentral();updateScanButtonState()}
+async function restoreSavedFolders(){for(const [key,prop,pathId] of [['rootDir','rootDir','rootPath'],['songBooksDir','songBooksDir','songBooksPath'],['centralDir','centralDir','centralPath'],['imagesDir','imagesDir','imagesPath'],['thumbsDir','thumbsDir','thumbsPath']]){const h=await loadHandle(key);if(h&&await ensurePerm(h)){state[prop]=h;setPath(pathId,h);log('Restored '+key+'.','good')}}if(state.rootDir)await applyRootFolders();if(state.imagesDir&&!state.imageIndex.size)await scanImages();if(state.thumbsDir&&!state.thumbIndex.size)await scanThumbs();if(state.songBooksDir)await autoFindCentral();await updateScanButtonState()}
 function parseVp(t){
   t=String(t??'').replace(/^\uFEFF/,'').trim();
   try{return JSON.parse(t)}catch(e){}
@@ -1454,8 +1475,8 @@ async function openSongbookViewer(){
 
 async function switchTab(name){document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));['dashboard','compare','changelog','audit','purge','unverified','themes','files','songbook','rules'].forEach(n=>$('tab-'+n).classList.toggle('hidden',n!==name));await onActiveTabChanged(name);}
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>switchTab(t.dataset.tab));
-$('pickRoot').onclick=async()=>{state.rootDir=await pickDir('VideoPsalm root','rootDir');await applyRootFolders();updateScanButtonState()};
-$('scanCompareAllBtn').onclick=compareAll;$('loadPairBtn').textContent='Reload selected pair';$('loadPairBtn').onclick=async()=>{await loadSelectedPair();await onPairLoaded();};$('pairSelect').onchange=async()=>{try{await loadSelectedPair();await onPairLoaded();}catch(e){showToast(e.message,'bad');log(e.message,'bad')}};$('compareBtn').onclick=async()=>{try{await loadSelectedPair();await onPairLoaded();switchTab('compare')}catch(e){showToast(e.message,'bad');log(e.message,'bad')}};$('makeCentralBtn').onclick=createMissingCentral;
+$('pickRoot').onclick=async()=>{state.rootDir=await pickDir('VideoPsalm root','rootDir');await applyRootFolders();await updateScanButtonState()};
+$('scanCompareAllBtn').onclick=async()=>{const ready=await updateScanButtonState();if(!ready){showToast('Choose the VideoPsalm root folder first.','bad');log('Root status: '+($('scanCompareAllBtn').dataset.rootStatus||'not selected')+'.','warn');return;}await compareAll();await updateScanButtonState();};$('loadPairBtn').textContent='Reload selected pair';$('loadPairBtn').onclick=async()=>{await loadSelectedPair();await onPairLoaded();};$('pairSelect').onchange=async()=>{try{await loadSelectedPair();await onPairLoaded();}catch(e){showToast(e.message,'bad');log(e.message,'bad')}};$('compareBtn').onclick=async()=>{try{await loadSelectedPair();await onPairLoaded();switchTab('compare')}catch(e){showToast(e.message,'bad');log(e.message,'bad')}};$('makeCentralBtn').onclick=createMissingCentral;
 $('applyLanguageLoadedBtn').onclick=async()=>{if(!state.current)return alert('Load a pair first.');if(!confirm(`Apply ${$('languageMode').value} mode to loaded Local using Local data only?`))return;const r=transformLanguage(state.current.localObj,$('languageMode').value);state.current.localObj=r.obj;await saveCurrent('local');log(`Applied language mode to loaded Local. Changed ${r.changed} verse fields and cleaned ${r.cleaned||0} empty style override(s).`,'good');await compareCurrent()};$('applyLanguageAllBtn').onclick=applyLanguageAll;
 $('cleanNoOpLocalBtn').onclick=()=>cleanNoOpStylesLoaded('local');
 $('cleanNoOpCentralBtn').onclick=()=>cleanNoOpStylesLoaded('central');
@@ -1474,5 +1495,5 @@ async function copyRootPathExample(){
 }
 $('copyRootPathBtn').onclick=copyRootPathExample;
 $('openSongbookViewerBtn').onclick=openSongbookViewer;$('songbookSearch').oninput=renderSongbookList;$('songbookSort').onchange=e=>{state.songbookViewer.sort=e.target.value;renderSongbookList();};$('changeLogLoadedBtn').textContent='Refresh loaded pair';$('changeLogLoadedBtn').onclick=showLoadedChangeLog;$('changeLogAllBtn').onclick=showAllChangeLogs;$('changeLogSearch').oninput=()=>renderChangeLogRows();$('changeLogSource').onchange=async()=>{if(state.current){await showLoadedChangeLog(false);await refreshActiveTabFromLoadedPair(true);}else if(state.batch?.length)await showAllChangeLogs()};$('auditLoadedBtn').textContent='Refresh loaded pair';$('auditLoadedBtn').onclick=auditLoaded;$('auditAllBtn').onclick=auditAll;$('auditSearch').oninput=()=>renderAuditRows();$('auditLevel').onchange=()=>renderAuditRows();$('scanUnverifiedLoadedBtn').textContent='Refresh loaded Central';$('scanUnverifiedLoadedBtn').onclick=scanUnverifiedLoaded;$('scanUnverifiedAllBtn').onclick=scanUnverifiedAll;$('unverifiedSearch').oninput=()=>renderUnverifiedRows();$('scanThemesBtn').onclick=async()=>{if(!state.imagesDir){log('Pick Images folder first.','bad');return;}await scanImages()};$('diffSearch').oninput=renderDiffs;$('diffFilter').onchange=renderDiffs;$('dashSearch').oninput=renderDashboard;$('showUnchanged').onchange=renderDashboard;
-(async function init(){if(window.showDirectoryPicker){await restoreSavedFolders()}else{log('This browser cannot edit folders directly. Use Chrome or Edge.','bad')}updateScanButtonState();log('Ready. Pick VideoPsalm root, then Scan.')})();
+(async function init(){if(window.showDirectoryPicker){await restoreSavedFolders()}else{log('This browser cannot edit folders directly. Use Chrome or Edge.','bad')}const ready=await updateScanButtonState();if(!ready&&state.rootDir){showToast('VideoPsalm root permission needs to be selected again.','bad');log('Root status: remembered but permission needed.','warn')}log('Ready. Pick VideoPsalm root, then Scan.')})();
 </script></body></html>
