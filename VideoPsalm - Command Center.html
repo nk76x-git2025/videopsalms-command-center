@@ -353,7 +353,7 @@ function log(msg,type=''){const d=document.createElement('div');d.textContent=`[
 function setPath(id,h,msg='Not selected'){const el=$(id);if(!el)return;el.textContent=h?h.name:msg}
 let toastTimer=null;
 function showToast(message,type='good'){const el=$('toast');if(!el)return;el.textContent=message;el.className=`toast ${type} show`;if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3000)}
-function updateScanButtonState(){const btn=$('scanCompareAllBtn');if(!btn)return;const ready=Boolean(state.rootDir&&state.songBooksDir&&state.centralDir);btn.disabled=!ready;btn.classList.toggle('scanWarn',!ready);btn.title=ready?'':'Choose the VideoPsalm root folder first.';}
+function updateScanButtonState(){const btn=$('scanCompareAllBtn');if(!btn)return;const ready=Boolean(state.rootDir);btn.disabled=!ready;btn.classList.toggle('scanWarn',!ready);btn.title=ready?'':'Choose the VideoPsalm root folder first.';}
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function baseName(n){return n.replace(/\.central$/i,'').replace(/\.json$/i,'')}
 function centralNameFromLocal(n){return n.replace(/\.json$/i,'.central')}
